@@ -1,0 +1,184 @@
+{
+  "cenario": "A-nominal",
+  "descricao": "Servico sem falha injetada; cliente unico e sequencial; mesma maquina.",
+  "hipotese": "Sem falha injetada, 100% das requisicoes medidas tem sucesso, nao ha erro de aplicacao nem de transporte, o p99 fica abaixo de 50 ms e a media fica proxima do p50 (cauda curta).",
+  "perturbacao": "Nenhuma (cenario de referencia).",
+  "criterio_de_parada": "Interromper a repeticao apos 20 erros de transporte consecutivos (servico inalcancavel: continuar so acumularia esperas sem informacao nova).",
+  "variaveis_do_servico": {},
+  "inicio_utc": "2026-11-23T20:38:48+00:00",
+  "fim_utc": "2026-11-23T20:39:03+00:00",
+  "ambiente": {
+    "sistema_operacional": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.9",
+    "bibliotecas": {
+      "fastapi": "0.115.0",
+      "starlette": "0.38.6",
+      "pydantic": "2.14.4",
+      "uvicorn": "0.54.0",
+      "requests": "2.32.3"
+    },
+    "commit": "2071a28",
+    "alteracoes_de_codigo_nao_commitadas": false
+  },
+  "parametros": {
+    "amostras": 200,
+    "aquecimento": 20,
+    "repeticoes": 3,
+    "tempo_limite_s": 1.0,
+    "reaproveitar_conexao": false,
+    "derrubar_servico_apos_amostras": null,
+    "limite_de_erros_de_transporte_consecutivos": 20,
+    "rota_medida": "GET /produtos",
+    "percentil": "posto mais proximo (nearest-rank)",
+    "cliente": "unico, sequencial, conexao TCP nova a cada requisicao"
+  },
+  "por_repeticao": [
+    {
+      "repeticao": 1,
+      "interrompida_pelo_criterio_de_parada": false,
+      "requisicoes": 200,
+      "sucessos": 200,
+      "erros_de_aplicacao": 0,
+      "erros_de_aplicacao_por_status": {},
+      "erros_de_transporte": 0,
+      "erros_de_transporte_por_tipo": {},
+      "taxa_de_erro_percentual": 0.0,
+      "duracao_total_s": 1.532,
+      "throughput_de_sucessos_por_s": 130.53,
+      "latencia_de_sucesso_ms": {
+        "amostras": 200,
+        "minimo": 3.09,
+        "media": 7.47,
+        "desvio_padrao": 6.29,
+        "maximo": 28.53,
+        "p50": 4.96,
+        "p95": 23.15,
+        "p99": 27.44
+      },
+      "latencia_de_todas_as_requisicoes_ms": {
+        "amostras": 200,
+        "minimo": 3.09,
+        "media": 7.47,
+        "desvio_padrao": 6.29,
+        "maximo": 28.53,
+        "p50": 4.96,
+        "p95": 23.15,
+        "p99": 27.44
+      }
+    },
+    {
+      "repeticao": 2,
+      "interrompida_pelo_criterio_de_parada": false,
+      "requisicoes": 200,
+      "sucessos": 200,
+      "erros_de_aplicacao": 0,
+      "erros_de_aplicacao_por_status": {},
+      "erros_de_transporte": 0,
+      "erros_de_transporte_por_tipo": {},
+      "taxa_de_erro_percentual": 0.0,
+      "duracao_total_s": 1.54,
+      "throughput_de_sucessos_por_s": 129.85,
+      "latencia_de_sucesso_ms": {
+        "amostras": 200,
+        "minimo": 3.11,
+        "media": 7.55,
+        "desvio_padrao": 8.05,
+        "maximo": 36.93,
+        "p50": 3.61,
+        "p95": 26.38,
+        "p99": 28.74
+      },
+      "latencia_de_todas_as_requisicoes_ms": {
+        "amostras": 200,
+        "minimo": 3.11,
+        "media": 7.55,
+        "desvio_padrao": 8.05,
+        "maximo": 36.93,
+        "p50": 3.61,
+        "p95": 26.38,
+        "p99": 28.74
+      }
+    },
+    {
+      "repeticao": 3,
+      "interrompida_pelo_criterio_de_parada": false,
+      "requisicoes": 200,
+      "sucessos": 200,
+      "erros_de_aplicacao": 0,
+      "erros_de_aplicacao_por_status": {},
+      "erros_de_transporte": 0,
+      "erros_de_transporte_por_tipo": {},
+      "taxa_de_erro_percentual": 0.0,
+      "duracao_total_s": 1.383,
+      "throughput_de_sucessos_por_s": 144.56,
+      "latencia_de_sucesso_ms": {
+        "amostras": 200,
+        "minimo": 2.98,
+        "media": 6.75,
+        "desvio_padrao": 6.76,
+        "maximo": 32.97,
+        "p50": 3.88,
+        "p95": 22.99,
+        "p99": 28.0
+      },
+      "latencia_de_todas_as_requisicoes_ms": {
+        "amostras": 200,
+        "minimo": 2.98,
+        "media": 6.75,
+        "desvio_padrao": 6.76,
+        "maximo": 32.97,
+        "p50": 3.88,
+        "p95": 22.99,
+        "p99": 28.0
+      }
+    }
+  ],
+  "agregado": {
+    "requisicoes": 600,
+    "sucessos": 600,
+    "erros_de_aplicacao": 0,
+    "erros_de_aplicacao_por_status": {},
+    "erros_de_transporte": 0,
+    "erros_de_transporte_por_tipo": {},
+    "taxa_de_erro_percentual": 0.0,
+    "duracao_total_s": 4.456,
+    "throughput_de_sucessos_por_s": 134.65,
+    "latencia_de_sucesso_ms": {
+      "amostras": 600,
+      "minimo": 2.98,
+      "media": 7.26,
+      "desvio_padrao": 7.08,
+      "maximo": 36.93,
+      "p50": 3.89,
+      "p95": 24.85,
+      "p99": 28.08
+    },
+    "latencia_de_todas_as_requisicoes_ms": {
+      "amostras": 600,
+      "minimo": 2.98,
+      "media": 7.26,
+      "desvio_padrao": 7.08,
+      "maximo": 36.93,
+      "p50": 3.89,
+      "p95": 24.85,
+      "p99": 28.08
+    }
+  },
+  "correlacao_cliente_servico": {
+    "requisicoes_medidas": 600,
+    "encontradas_no_log_do_servico": 600,
+    "por_resultado_do_cliente": {
+      "success": {
+        "requisicoes_no_cliente": 600,
+        "encontradas_no_log_do_servico": 600,
+        "status_registrado_no_servico": {
+          "200": 600
+        },
+        "marcadas_como_falha_injetada_no_servico": 0,
+        "mediana_da_duracao_no_cliente_ms": 3.89,
+        "mediana_da_duracao_no_servico_ms": 1.4,
+        "exemplo_de_correlation_id": "exp-121e46cbdae146d1a09c0a9c6897c4dc"
+      }
+    }
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "cenario": "D-atraso-acima-do-tempo-limite",
+  "descricao": "Servico atrasa 1.200 ms cada resposta de dominio; tempo limite do cliente de 1 s.",
+  "hipotese": "100% das requisicoes medidas terminam em erro de transporte por tempo limite de leitura (read_timeout). Mesmo assim, o servico conclui essas mesmas requisicoes: o log do servico mostra status 200 e duracao de pelo menos 1.200 ms para os mesmos correlation_id. O tempo limite nao prova que a operacao deixou de acontecer.",
+  "perturbacao": "LOJA_ATRASO_INJETADO_MS=1200.",
+  "criterio_de_parada": "Todas as requisicoes devem estourar o tempo limite por desenho, entao o criterio de erros consecutivos fica desligado; o custo e limitado pela amostra reduzida (30 por repeticao, cerca de 30 s cada).",
+  "variaveis_do_servico": {
+    "LOJA_ATRASO_INJETADO_MS": "1200"
+  },
+  "inicio_utc": "2026-11-23T20:41:23+00:00",
+  "fim_utc": "2026-11-23T20:43:12+00:00",
+  "ambiente": {
+    "sistema_operacional": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.9",
+    "bibliotecas": {
+      "fastapi": "0.115.0",
+      "starlette": "0.38.6",
+      "pydantic": "2.14.4",
+      "uvicorn": "0.54.0",
+      "requests": "2.32.3"
+    },
+    "commit": "2071a28",
+    "alteracoes_de_codigo_nao_commitadas": false
+  },
+  "parametros": {
+    "amostras": 30,
+    "aquecimento": 2,
+    "repeticoes": 3,
+    "tempo_limite_s": 1.0,
+    "reaproveitar_conexao": false,
+    "derrubar_servico_apos_amostras": null,
+    "limite_de_erros_de_transporte_consecutivos": null,
+    "rota_medida": "GET /produtos",
+    "percentil": "posto mais proximo (nearest-rank)",
+    "cliente": "unico, sequencial, conexao TCP nova a cada requisicao"
+  },
+  "por_repeticao": [
+    {
+      "repeticao": 1,
+      "interrompida_pelo_criterio_de_parada": false,
+      "requisicoes": 30,
+      "sucessos": 0,
+      "erros_de_aplicacao": 0,
+      "erros_de_aplicacao_por_status": {},
+      "erros_de_transporte": 30,
+      "erros_de_transporte_por_tipo": {
+        "read_timeout": 30
+      },
+      "taxa_de_erro_percentual": 100.0,
+      "duracao_total_s": 30.335,
+      "throughput_de_sucessos_por_s": 0.0,
+      "latencia_de_sucesso_ms": {
+        "amostras": 0
+      },
+      "latencia_de_todas_as_requisicoes_ms": {
+        "amostras": 30,
+        "minimo": 1006.77,
+        "media": 1010.9,
+        "desvio_padrao": 2.98,
+        "maximo": 1019.68,
+        "p50": 1010.29,
+        "p95": 1019.36,
+        "p99": 1019.68
+      }
+    },
+    {
+      "repeticao": 2,
+      "interrompida_pelo_criterio_de_parada": false,
+      "requisicoes": 30,
+      "sucessos": 0,
+      "erros_de_aplicacao": 0,
+      "erros_de_aplicacao_por_status": {},
+      "erros_de_transporte": 30,
+      "erros_de_transporte_por_tipo": {
+        "read_timeout": 30
+      },
+      "taxa_de_erro_percentual": 100.0,
+      "duracao_total_s": 30.347,
+      "throughput_de_sucessos_por_s": 0.0,
+      "latencia_de_sucesso_ms": {
+        "amostras": 0
+      },
+      "latencia_de_todas_as_requisicoes_ms": {
+        "amostras": 30,
+        "minimo": 1005.88,
+        "media": 1011.33,
+        "desvio_padrao": 4.52,
+        "maximo": 1024.88,
+        "p50": 1010.77,
+        "p95": 1022.94,
+        "p99": 1024.88
+      }
+    },
+    {
+      "repeticao": 3,
+      "interrompida_pelo_criterio_de_parada": false,
+      "requisicoes": 30,
+      "sucessos": 0,
+      "erros_de_aplicacao": 0,
+      "erros_de_aplicacao_por_status": {},
+      "erros_de_transporte": 30,
+      "erros_de_transporte_por_tipo": {
+        "read_timeout": 30
+      },
+      "taxa_de_erro_percentual": 100.0,
+      "duracao_total_s": 30.371,
+      "throughput_de_sucessos_por_s": 0.0,
+      "latencia_de_sucesso_ms": {
+        "amostras": 0
+      },
+      "latencia_de_todas_as_requisicoes_ms": {
+        "amostras": 30,
+        "minimo": 1005.0,
+        "media": 1012.11,
+        "desvio_padrao": 6.16,
+        "maximo": 1040.43,
+        "p50": 1010.34,
+        "p95": 1020.64,
+        "p99": 1040.43
+      }
+    }
+  ],
+  "agregado": {
+    "requisicoes": 90,
+    "sucessos": 0,
+    "erros_de_aplicacao": 0,
+    "erros_de_aplicacao_por_status": {},
+    "erros_de_transporte": 90,
+    "erros_de_transporte_por_tipo": {
+      "read_timeout": 90
+    },
+    "taxa_de_erro_percentual": 100.0,
+    "duracao_total_s": 91.053,
+    "throughput_de_sucessos_por_s": 0.0,
+    "latencia_de_sucesso_ms": {
+      "amostras": 0
+    },
+    "latencia_de_todas_as_requisicoes_ms": {
+      "amostras": 90,
+      "minimo": 1005.0,
+      "media": 1011.45,
+      "desvio_padrao": 4.76,
+      "maximo": 1040.43,
+      "p50": 1010.36,
+      "p95": 1020.64,
+      "p99": 1040.43
+    }
+  },
+  "correlacao_cliente_servico": {
+    "requisicoes_medidas": 90,
+    "encontradas_no_log_do_servico": 90,
+    "por_resultado_do_cliente": {
+      "transport_error:read_timeout": {
+        "requisicoes_no_cliente": 90,
+        "encontradas_no_log_do_servico": 90,
+        "status_registrado_no_servico": {
+          "200": 90
+        },
+        "marcadas_como_falha_injetada_no_servico": 0,
+        "mediana_da_duracao_no_cliente_ms": 1010.43,
+        "mediana_da_duracao_no_servico_ms": 1210.25,
+        "exemplo_de_correlation_id": "exp-347258c34d5646849110946cfb409e15"
+      }
+    }
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "cenario": "E-queda-do-servico",
+  "descricao": "Processo do servico encerrado abruptamente apos 100 requisicoes medidas.",
+  "hipotese": "As 100 requisicoes anteriores a queda tem sucesso. As posteriores terminam em erro de transporte na fase de conexao (connection_error ou connect_timeout), nunca em read_timeout nem em erro de aplicacao, e nenhuma delas aparece no log do servico. O criterio de parada interrompe a repeticao apos 20 erros de transporte consecutivos.",
+  "perturbacao": "Encerramento do processo do servico (TerminateProcess/SIGTERM) apos 100 amostras.",
+  "criterio_de_parada": "Interromper a repeticao apos 20 erros de transporte consecutivos (servico inalcancavel: continuar so acumularia esperas sem informacao nova).",
+  "variaveis_do_servico": {},
+  "inicio_utc": "2026-11-23T20:43:13+00:00",
+  "fim_utc": "2026-11-23T20:44:23+00:00",
+  "ambiente": {
+    "sistema_operacional": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.9",
+    "bibliotecas": {
+      "fastapi": "0.115.0",
+      "starlette": "0.38.6",
+      "pydantic": "2.14.4",
+      "uvicorn": "0.54.0",
+      "requests": "2.32.3"
+    },
+    "commit": "2071a28",
+    "alteracoes_de_codigo_nao_commitadas": false
+  },
+  "parametros": {
+    "amostras": 200,
+    "aquecimento": 20,
+    "repeticoes": 3,
+    "tempo_limite_s": 1.0,
+    "reaproveitar_conexao": false,
+    "derrubar_servico_apos_amostras": 100,
+    "limite_de_erros_de_transporte_consecutivos": 20,
+    "rota_medida": "GET /produtos",
+    "percentil": "posto mais proximo (nearest-rank)",
+    "cliente": "unico, sequencial, conexao TCP nova a cada requisicao"
+  },
+  "por_repeticao": [
+    {
+      "repeticao": 1,
+      "interrompida_pelo_criterio_de_parada": true,
+      "requisicoes": 120,
+      "sucessos": 100,
+      "erros_de_aplicacao": 0,
+      "erros_de_aplicacao_por_status": {},
+      "erros_de_transporte": 20,
+      "erros_de_transporte_por_tipo": {
+        "connect_timeout": 20
+      },
+      "taxa_de_erro_percentual": 16.67,
+      "duracao_total_s": 21.171,
+      "throughput_de_sucessos_por_s": 4.72,
+      "latencia_de_sucesso_ms": {
+        "amostras": 100,
+        "minimo": 4.98,
+        "media": 8.97,
+        "desvio_padrao": 4.8,
+        "maximo": 33.21,
+        "p50": 7.45,
+        "p95": 14.91,
+        "p99": 29.99
+      },
+      "latencia_de_todas_as_requisicoes_ms": {
+        "amostras": 120,
+        "minimo": 4.98,
+        "media": 176.0,
+        "desvio_padrao": 373.52,
+        "maximo": 1020.72,
+        "p50": 8.29,
+        "p95": 1012.1,
+        "p99": 1019.14
+      }
+    },
+    {
+      "repeticao": 2,
+      "interrompida_pelo_criterio_de_parada": true,
+      "requisicoes": 120,
+      "sucessos": 100,
+      "erros_de_aplicacao": 0,
+      "erros_de_aplicacao_por_status": {},
+      "erros_de_transporte": 20,
+      "erros_de_transporte_por_tipo": {
+        "connect_timeout": 20
+      },
+      "taxa_de_erro_percentual": 16.67,
+      "duracao_total_s": 21.056,
+      "throughput_de_sucessos_por_s": 4.75,
+      "latencia_de_sucesso_ms": {
+        "amostras": 100,
+        "minimo": 4.88,
+        "media": 8.25,
+        "desvio_padrao": 3.19,
+        "maximo": 30.75,
+        "p50": 7.53,
+        "p95": 12.83,
+        "p99": 19.9
+      },
+      "latencia_de_todas_as_requisicoes_ms": {
+        "amostras": 120,
+        "minimo": 4.88,
+        "media": 175.09,
+        "desvio_padrao": 373.08,
+        "maximo": 1016.01,
+        "p50": 7.8,
+        "p95": 1011.14,
+        "p99": 1013.25
+      }
+    },
+    {
+      "repeticao": 3,
+      "interrompida_pelo_criterio_de_parada": true,
+      "requisicoes": 120,
+      "sucessos": 100,
+      "erros_de_aplicacao": 0,
+      "erros_de_aplicacao_por_status": {},
+      "erros_de_transporte": 20,
+      "erros_de_transporte_por_tipo": {
+        "connect_timeout": 20
+      },
+      "taxa_de_erro_percentual": 16.67,
+      "duracao_total_s": 21.089,
+      "throughput_de_sucessos_por_s": 4.74,
+      "latencia_de_sucesso_ms": {
+        "amostras": 100,
+        "minimo": 5.37,
+        "media": 8.15,
+        "desvio_padrao": 4.84,
+        "maximo": 36.48,
+        "p50": 6.66,
+        "p95": 19.73,
+        "p99": 29.31
+      },
+      "latencia_de_todas_as_requisicoes_ms": {
+        "amostras": 120,
+        "minimo": 5.37,
+        "media": 175.36,
+        "desvio_padrao": 373.91,
+        "maximo": 1019.45,
+        "p50": 7.03,
+        "p95": 1012.38,
+        "p99": 1018.08
+      }
+    }
+  ],
+  "agregado": {
+    "requisicoes": 360,
+    "sucessos": 300,
+    "erros_de_aplicacao": 0,
+    "erros_de_aplicacao_por_status": {},
+    "erros_de_transporte": 60,
+    "erros_de_transporte_por_tipo": {
+      "connect_timeout": 60
+    },
+    "taxa_de_erro_percentual": 16.67,
+    "duracao_total_s": 63.316,
+    "throughput_de_sucessos_por_s": 4.74,
+    "latencia_de_sucesso_ms": {
+      "amostras": 300,
+      "minimo": 4.88,
+      "media": 8.46,
+      "desvio_padrao": 4.36,
+      "maximo": 36.48,
+      "p50": 7.23,
+      "p95": 13.89,
+      "p99": 29.99
+    },
+    "latencia_de_todas_as_requisicoes_ms": {
+      "amostras": 360,
+      "minimo": 4.88,
+      "media": 175.48,
+      "desvio_padrao": 373.5,
+      "maximo": 1020.72,
+      "p50": 7.68,
+      "p95": 1012.1,
+      "p99": 1018.08
+    }
+  },
+  "correlacao_cliente_servico": {
+    "requisicoes_medidas": 360,
+    "encontradas_no_log_do_servico": 300,
+    "por_resultado_do_cliente": {
+      "success": {
+        "requisicoes_no_cliente": 300,
+        "encontradas_no_log_do_servico": 300,
+        "status_registrado_no_servico": {
+          "200": 300
+        },
+        "marcadas_como_falha_injetada_no_servico": 0,
+        "mediana_da_duracao_no_cliente_ms": 7.23,
+        "mediana_da_duracao_no_servico_ms": 2.0,
+        "exemplo_de_correlation_id": "exp-34c45f6553bc4a18a6c08659257aa082"
+      },
+      "transport_error:connect_timeout": {
+        "requisicoes_no_cliente": 60,
+        "encontradas_no_log_do_servico": 0,
+        "status_registrado_no_servico": {},
+        "marcadas_como_falha_injetada_no_servico": 0,
+        "mediana_da_duracao_no_cliente_ms": 1010.41,
+        "mediana_da_duracao_no_servico_ms": null,
+        "exemplo_de_correlation_id": "exp-cfdd326405a240be8e7501feeaf9dca7"
+      }
+    }
+  }
+}

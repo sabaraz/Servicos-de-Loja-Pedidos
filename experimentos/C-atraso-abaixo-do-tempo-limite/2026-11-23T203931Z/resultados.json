@@ -1,0 +1,186 @@
+{
+  "cenario": "C-atraso-abaixo-do-tempo-limite",
+  "descricao": "Servico atrasa 300 ms cada resposta de dominio; tempo limite do cliente de 1 s.",
+  "hipotese": "Todas as requisicoes medidas tem sucesso (nenhum erro), mas o p50 sobe para cerca de 300 ms mais o p50 do cenario A: a degradacao aparece na latencia, nao na taxa de erro.",
+  "perturbacao": "LOJA_ATRASO_INJETADO_MS=300.",
+  "criterio_de_parada": "Interromper a repeticao apos 20 erros de transporte consecutivos (servico inalcancavel: continuar so acumularia esperas sem informacao nova).",
+  "variaveis_do_servico": {
+    "LOJA_ATRASO_INJETADO_MS": "300"
+  },
+  "inicio_utc": "2026-11-23T20:39:31+00:00",
+  "fim_utc": "2026-11-23T20:41:23+00:00",
+  "ambiente": {
+    "sistema_operacional": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.9",
+    "bibliotecas": {
+      "fastapi": "0.115.0",
+      "starlette": "0.38.6",
+      "pydantic": "2.14.4",
+      "uvicorn": "0.54.0",
+      "requests": "2.32.3"
+    },
+    "commit": "2071a28",
+    "alteracoes_de_codigo_nao_commitadas": false
+  },
+  "parametros": {
+    "amostras": 100,
+    "aquecimento": 5,
+    "repeticoes": 3,
+    "tempo_limite_s": 1.0,
+    "reaproveitar_conexao": false,
+    "derrubar_servico_apos_amostras": null,
+    "limite_de_erros_de_transporte_consecutivos": 20,
+    "rota_medida": "GET /produtos",
+    "percentil": "posto mais proximo (nearest-rank)",
+    "cliente": "unico, sequencial, conexao TCP nova a cada requisicao"
+  },
+  "por_repeticao": [
+    {
+      "repeticao": 1,
+      "interrompida_pelo_criterio_de_parada": false,
+      "requisicoes": 100,
+      "sucessos": 100,
+      "erros_de_aplicacao": 0,
+      "erros_de_aplicacao_por_status": {},
+      "erros_de_transporte": 0,
+      "erros_de_transporte_por_tipo": {},
+      "taxa_de_erro_percentual": 0.0,
+      "duracao_total_s": 32.043,
+      "throughput_de_sucessos_por_s": 3.12,
+      "latencia_de_sucesso_ms": {
+        "amostras": 100,
+        "minimo": 294.75,
+        "media": 319.96,
+        "desvio_padrao": 7.39,
+        "maximo": 329.73,
+        "p50": 322.17,
+        "p95": 328.77,
+        "p99": 329.47
+      },
+      "latencia_de_todas_as_requisicoes_ms": {
+        "amostras": 100,
+        "minimo": 294.75,
+        "media": 319.96,
+        "desvio_padrao": 7.39,
+        "maximo": 329.73,
+        "p50": 322.17,
+        "p95": 328.77,
+        "p99": 329.47
+      }
+    },
+    {
+      "repeticao": 2,
+      "interrompida_pelo_criterio_de_parada": false,
+      "requisicoes": 100,
+      "sucessos": 100,
+      "erros_de_aplicacao": 0,
+      "erros_de_aplicacao_por_status": {},
+      "erros_de_transporte": 0,
+      "erros_de_transporte_por_tipo": {},
+      "taxa_de_erro_percentual": 0.0,
+      "duracao_total_s": 32.311,
+      "throughput_de_sucessos_por_s": 3.09,
+      "latencia_de_sucesso_ms": {
+        "amostras": 100,
+        "minimo": 294.67,
+        "media": 322.63,
+        "desvio_padrao": 8.12,
+        "maximo": 338.75,
+        "p50": 324.6,
+        "p95": 332.5,
+        "p99": 337.64
+      },
+      "latencia_de_todas_as_requisicoes_ms": {
+        "amostras": 100,
+        "minimo": 294.67,
+        "media": 322.63,
+        "desvio_padrao": 8.12,
+        "maximo": 338.75,
+        "p50": 324.6,
+        "p95": 332.5,
+        "p99": 337.64
+      }
+    },
+    {
+      "repeticao": 3,
+      "interrompida_pelo_criterio_de_parada": false,
+      "requisicoes": 100,
+      "sucessos": 100,
+      "erros_de_aplicacao": 0,
+      "erros_de_aplicacao_por_status": {},
+      "erros_de_transporte": 0,
+      "erros_de_transporte_por_tipo": {},
+      "taxa_de_erro_percentual": 0.0,
+      "duracao_total_s": 32.053,
+      "throughput_de_sucessos_por_s": 3.12,
+      "latencia_de_sucesso_ms": {
+        "amostras": 100,
+        "minimo": 297.31,
+        "media": 320.2,
+        "desvio_padrao": 7.95,
+        "maximo": 341.44,
+        "p50": 323.19,
+        "p95": 329.11,
+        "p99": 340.06
+      },
+      "latencia_de_todas_as_requisicoes_ms": {
+        "amostras": 100,
+        "minimo": 297.31,
+        "media": 320.2,
+        "desvio_padrao": 7.95,
+        "maximo": 341.44,
+        "p50": 323.19,
+        "p95": 329.11,
+        "p99": 340.06
+      }
+    }
+  ],
+  "agregado": {
+    "requisicoes": 300,
+    "sucessos": 300,
+    "erros_de_aplicacao": 0,
+    "erros_de_aplicacao_por_status": {},
+    "erros_de_transporte": 0,
+    "erros_de_transporte_por_tipo": {},
+    "taxa_de_erro_percentual": 0.0,
+    "duracao_total_s": 96.406,
+    "throughput_de_sucessos_por_s": 3.11,
+    "latencia_de_sucesso_ms": {
+      "amostras": 300,
+      "minimo": 294.67,
+      "media": 320.93,
+      "desvio_padrao": 7.92,
+      "maximo": 341.44,
+      "p50": 323.57,
+      "p95": 329.95,
+      "p99": 337.64
+    },
+    "latencia_de_todas_as_requisicoes_ms": {
+      "amostras": 300,
+      "minimo": 294.67,
+      "media": 320.93,
+      "desvio_padrao": 7.92,
+      "maximo": 341.44,
+      "p50": 323.57,
+      "p95": 329.95,
+      "p99": 337.64
+    }
+  },
+  "correlacao_cliente_servico": {
+    "requisicoes_medidas": 300,
+    "encontradas_no_log_do_servico": 300,
+    "por_resultado_do_cliente": {
+      "success": {
+        "requisicoes_no_cliente": 300,
+        "encontradas_no_log_do_servico": 300,
+        "status_registrado_no_servico": {
+          "200": 300
+        },
+        "marcadas_como_falha_injetada_no_servico": 0,
+        "mediana_da_duracao_no_cliente_ms": 323.59,
+        "mediana_da_duracao_no_servico_ms": 316.65,
+        "exemplo_de_correlation_id": "exp-db8035d9270d4e3a8f96f072e84be253"
+      }
+    }
+  }
+}
