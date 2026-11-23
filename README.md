@@ -75,6 +75,7 @@ Variáveis de ambiente lidas na inicialização. Sem elas, não há falha injeta
 | `LOJA_PERCENTUAL_DE_FALHAS_503` | Percentual de respostas `503` sorteadas | `0` |
 | `LOJA_SEMENTE_DA_INJECAO` | Semente do sorteio, para repetir a mesma sequência de falhas | aleatória |
 | `LOJA_NOME_DA_INSTANCIA` | Valor do campo `instance` no log | `pid-<número do processo>` |
+| `LOJA_CAMINHO_DO_BANCO` | Arquivo SQLite usado pelo serviço | `servico_da_loja/loja.db` |
 
 Exemplo no PowerShell (atraso de 200 ms e 30% de falhas, sequência reproduzível):
 
@@ -87,7 +88,30 @@ A configuração ativa é registrada na primeira linha de log (`"message": "serv
 
 ## 6. Teste funcional
 
-*(em construção)*
+Com o ambiente virtual ativado, a partir da raiz do repositório:
+
+```bash
+python -m unittest -v
+```
+
+- Não é preciso subir o serviço antes. O teste o inicia em um processo separado, numa porta livre e com um banco temporário, e o encerra ao final. O banco `servico_da_loja/loja.db` não é tocado.
+- São 16 cenários em condição nominal, cada um criando os próprios dados:
+  - sucesso e conflito (409) no cadastro;
+  - recurso inexistente (404);
+  - idempotência sequencial e concorrente;
+  - soma de quantidade do item;
+  - confirmação, cancelamento e estoque;
+  - duas confirmações simultâneas;
+  - tempo limite curto e suficiente;
+  - correlação por `X-Correlation-ID`.
+- Toda requisição tem tempo limite explícito e envia um `X-Correlation-ID` próprio. Em caso de falha, a mensagem mostra esse id, que localiza a mesma requisição no log do serviço.
+- Para testar um serviço já em execução, defina o endereço dele antes:
+
+```powershell
+$env:LOJA_ENDERECO_BASE_DO_SERVICO = "http://127.0.0.1:8000"; python -m unittest -v
+```
+
+O teste funcional verifica **se** cada operação responde corretamente. Medir **quanto tempo** ela leva e como se comporta sob falha é papel dos experimentos (seção 7).
 
 ## 7. Experimentos
 

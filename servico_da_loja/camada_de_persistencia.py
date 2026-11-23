@@ -5,6 +5,7 @@ criacao do esquema. Toda instrucao executada aqui gera um evento no
 rastreamento da requisicao corrente.
 """
 
+import os
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -12,7 +13,9 @@ from pathlib import Path
 
 from . import rastreamento_por_requisicao
 
-DB_PATH = Path(__file__).parent / "loja.db"
+# LOJA_CAMINHO_DO_BANCO permite apontar para outro arquivo (ex.: banco
+# temporario e descartavel do teste funcional ou de um experimento).
+DB_PATH = Path(os.environ.get("LOJA_CAMINHO_DO_BANCO", Path(__file__).parent / "loja.db"))
 SCHEMA_PATH = Path(__file__).parent / "esquema_e_dados_de_exemplo.sql"
 
 # Tempo maximo, em segundos, que uma conexao espera pelo lock de escrita de
