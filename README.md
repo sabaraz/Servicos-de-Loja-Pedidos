@@ -41,7 +41,49 @@ pip install -r requirements.txt
 
 ## 5. Execução do serviço
 
-*(em construção)*
+Com o ambiente virtual ativado, a partir da raiz do repositório:
+
+```bash
+python -m uvicorn servico_da_loja.aplicacao_web:app --host 127.0.0.1 --port 8000
+```
+
+- O servidor roda sem recarga automática, para que as medições não sejam afetadas.
+- O banco `servico_da_loja/loja.db` é criado na primeira inicialização, já com três produtos de exemplo. Para recomeçar do zero, pare o serviço e apague esse arquivo.
+- Documentação interativa: `http://127.0.0.1:8000/docs`.
+
+### 5.1 Correlação e logs
+
+- Toda resposta traz o cabeçalho `X-Correlation-ID`.
+- Se o cliente enviar esse cabeçalho com um valor válido (até 64 caracteres entre letras, dígitos, `.`, `-` e `_`), o serviço reaproveita o valor. Caso contrário, gera um UUID.
+- Cada requisição gera uma linha de log em JSON na saída padrão, com os campos `timestamp`, `level`, `service`, `instance`, `correlation_id`, `operation`, `method`, `path`, `status`, `duration_ms` e `outcome`.
+- As linhas de inicialização do próprio Uvicorn não são JSON. Para analisar o log, considere só as linhas que começam com `{`.
+- `GET /traces/{correlation_id}` devolve os eventos internos (validação, SQL, transação) de uma requisição recente.
+
+Exemplo de verificação manual:
+
+```bash
+curl -i http://127.0.0.1:8000/produtos -H "X-Correlation-ID: teste-manual-001"
+```
+
+### 5.2 Falha injetada (experimentos)
+
+Variáveis de ambiente lidas na inicialização. Sem elas, não há falha injetada. Elas afetam só as rotas `/produtos` e `/pedidos`.
+
+| Variável | Efeito | Padrão |
+|---|---|---|
+| `LOJA_ATRASO_INJETADO_MS` | Atraso, em milissegundos, antes de cada resposta | `0` |
+| `LOJA_PERCENTUAL_DE_FALHAS_503` | Percentual de respostas `503` sorteadas | `0` |
+| `LOJA_SEMENTE_DA_INJECAO` | Semente do sorteio, para repetir a mesma sequência de falhas | aleatória |
+| `LOJA_NOME_DA_INSTANCIA` | Valor do campo `instance` no log | `pid-<número do processo>` |
+
+Exemplo no PowerShell (atraso de 200 ms e 30% de falhas, sequência reproduzível):
+
+```powershell
+$env:LOJA_ATRASO_INJETADO_MS = "200"; $env:LOJA_PERCENTUAL_DE_FALHAS_503 = "30"; $env:LOJA_SEMENTE_DA_INJECAO = "42"
+python -m uvicorn servico_da_loja.aplicacao_web:app --host 127.0.0.1 --port 8000
+```
+
+A configuração ativa é registrada na primeira linha de log (`"message": "servico iniciado"`). As respostas com falha injetada trazem `"injected_fault": true` no log.
 
 ## 6. Teste funcional
 
