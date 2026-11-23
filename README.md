@@ -119,7 +119,55 @@ O teste funcional verifica **se** cada operação responde corretamente. Medir *
 
 ## 7. Experimentos
 
-*(em construção)*
+Com o ambiente virtual ativado, a partir da raiz do repositório:
+
+```bash
+python experimentos/experimento_de_latencia_e_falhas.py --cenario A-nominal
+```
+
+```bash
+python experimentos/experimento_de_latencia_e_falhas.py --cenario A-nominal --reaproveitar-conexao
+```
+
+**O que o script faz em cada repetição:**
+- sobe o serviço num processo próprio, com banco temporário novo e as variáveis de falha do cenário;
+- envia as requisições de aquecimento, que são descartadas;
+- mede `GET /produtos` com um cliente único e sequencial. Cada requisição leva um `X-Correlation-ID` próprio e tempo limite explícito;
+- encerra o serviço.
+
+**Classificação de cada requisição** (feita do ponto de vista do cliente):
+
+| Resultado | Significado |
+|---|---|
+| `success` | Resposta HTTP 2xx |
+| `application_error` | O serviço respondeu, mas com status de erro (4xx/5xx) |
+| `transport_error` | Nenhuma resposta chegou: `timeout` ou `connection_error` |
+
+**Métricas:**
+- latência das respostas de sucesso: mínimo, média, desvio padrão, p50, p95, p99 e máximo;
+- contagem de cada tipo de erro;
+- taxa de erro;
+- throughput de sucessos (req/s).
+
+Os percentis usam o método do **posto mais próximo**: o menor valor observado que é maior ou igual a p% das amostras.
+
+| Parâmetro | Padrão |
+|---|---|
+| `--amostras` | 200 por repetição |
+| `--aquecimento` | 20 requisições descartadas por repetição |
+| `--repeticoes` | 3 (o serviço é reiniciado a cada repetição) |
+| `--tempo-limite` | 1,0 s por requisição |
+| `--reaproveitar-conexao` | Desligado: cada requisição abre uma conexão TCP nova |
+
+**Evidências gravadas em `experimentos/<cenário>/`:**
+
+| Arquivo | Conteúdo |
+|---|---|
+| `resultados.json` | Hipótese, parâmetros, ambiente (SO, Python, bibliotecas, commit) e métricas por repetição e agregadas |
+| `cliente.log` | Uma linha JSON por requisição do cliente, com `correlation_id`, `duration_ms` e `outcome` |
+| `servico.log` | Saída do serviço, com uma linha JSON por requisição |
+
+O mesmo `correlation_id` aparece nos dois logs. Assim, dá para separar o tempo gasto dentro do serviço (`duration_ms` do `servico.log`) do tempo total visto pelo cliente (`duration_ms` do `cliente.log`).
 
 ## 8. Convenção de nomes
 
