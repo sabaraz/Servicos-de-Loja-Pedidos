@@ -1,0 +1,68 @@
+/* Estilo do relatorio tecnico da AP9.
+   Pagina A4, impressa em PDF a partir de HTML. */
+
+@page { size: A4; margin: 22mm 20mm 20mm 20mm;
+  @bottom-right { content: counter(page); font: 9pt "Segoe UI", sans-serif; color: #545454; } }
+@page :first { @bottom-right { content: none; } }
+
+:root {
+  --texto: #1c1c1c; --destaque: #1e7a32; --secundario: #545454;
+  --tabela-cabecalho: #eeeeee; --tabela-borda: #cccccc; --fundo-claro: #f6f6f6;
+  --codigo-fundo: #282c34; --codigo-barra: #21252b; --codigo-texto: #abb2bf;
+  --codigo-comentario: #5c6370; --codigo-numero-linha: #7f848e;
+  --codigo-palavra-chave: #c678dd; --codigo-string: #98c379; --codigo-numero: #d19a66;
+  --codigo-funcao: #61afef; --codigo-builtin: #56b6c2;
+}
+
+body { font: 11pt/1.5 Georgia, serif; color: var(--texto); background: #ffffff; }
+
+h1, h2, h3, h4 { font-family: "Segoe UI", sans-serif; color: var(--texto); }
+h1 { font-size: 18pt; font-weight: 700; border-bottom: 2px solid var(--destaque);
+     padding-bottom: 4px; page-break-before: always; }
+h2 { font-size: 13.5pt; font-weight: 600; margin-top: 1.4em; }
+h3 { font-size: 11.5pt; font-weight: 600; }
+
+/* Capa */
+.capa { text-align: center; page-break-after: always; padding-top: 25mm; }
+.capa img.logo { width: 70mm; margin-bottom: 30mm; }
+.capa .titulo { font: 700 24pt/1.25 "Segoe UI", sans-serif; }
+.capa .tipo { font: 600 14pt "Segoe UI", sans-serif; color: var(--destaque); margin-top: 18mm; }
+.capa .trabalho { font: 12pt "Segoe UI", sans-serif; }
+.capa .frase { font: italic 11pt Georgia, serif; color: var(--secundario); margin-top: 10mm; }
+.capa .autor { font: 600 12pt "Segoe UI", sans-serif; margin-top: 35mm; }
+
+/* Sumário */
+.sumario ol, .sumario ul { list-style: none; padding-left: 0; font-family: "Segoe UI", sans-serif; }
+.sumario a { color: var(--texto); text-decoration: none; }
+
+/* Tabelas */
+table { border-collapse: collapse; width: 100%; margin: 0.8em 0;
+        font: 9.5pt/1.4 "Segoe UI", sans-serif; page-break-inside: avoid; }
+th { background: var(--tabela-cabecalho); font-weight: 600; text-align: left; }
+th, td { border: 1px solid var(--tabela-borda); padding: 4px 7px; vertical-align: top; }
+
+/* Código em linha */
+code { font: 9.5pt Consolas, monospace; background: var(--fundo-claro);
+       border: 1px solid #dddddd; border-radius: 3px; padding: 0 3px; }
+
+/* Bloco de código: barra com arquivo e linhas + corpo One Dark */
+.bloco-codigo { margin: 1em 0 0.3em; page-break-inside: avoid; border-radius: 5px; overflow: hidden; }
+.bloco-codigo .barra { display: flex; justify-content: space-between;
+  background: var(--codigo-barra); color: var(--codigo-texto); font: 9pt Consolas, monospace; padding: 4px 10px; }
+pre { background: var(--codigo-fundo); color: var(--codigo-texto); margin: 0;
+      font: 9pt/1.45 Consolas, monospace; padding: 8px 10px; white-space: pre-wrap; }
+pre code { background: none; border: 0; padding: 0; color: inherit; }
+pre .numero-linha { color: var(--codigo-numero-linha); display: inline-block; width: 2.6em; user-select: none; }
+.tok-comentario { color: var(--codigo-comentario); font-style: italic; }
+.tok-palavra-chave { color: var(--codigo-palavra-chave); }
+.tok-string { color: var(--codigo-string); }
+.tok-numero { color: var(--codigo-numero); }
+.tok-funcao { color: var(--codigo-funcao); }
+.tok-builtin { color: var(--codigo-builtin); }
+
+/* Legendas "Código N." */
+.legenda { font: 9pt "Segoe UI", sans-serif; color: var(--secundario); margin: 0 0 1.2em; }
+.legenda strong { color: var(--texto); }
+
+/* Veredito de hipótese ao fim de cada experimento */
+.veredito { font-weight: 700; }
