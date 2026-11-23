@@ -125,23 +125,40 @@ Com o ambiente virtual ativado, a partir da raiz do repositório:
 python experimentos/experimento_de_latencia_e_falhas.py --cenario A-nominal
 ```
 
-```bash
-python experimentos/experimento_de_latencia_e_falhas.py --cenario A-nominal --reaproveitar-conexao
-```
+Cada cenário declara no script, antes de executar, a **hipótese**, a **perturbação** e o **critério de parada**:
+
+| Cenário | Perturbação | Amostras × repetições | Duração aproximada |
+|---|---|---|---|
+| `A-nominal` | Nenhuma (referência) | 200 × 3 | 15 s |
+| `A-nominal --reaproveitar-conexao` | Nenhuma; conexão keep-alive | 200 × 3 | 10 s |
+| `B-falha-de-aplicacao-503` | 20% de respostas 503 (semente 42) | 200 × 3 | 15 s |
+| `C-atraso-abaixo-do-tempo-limite` | Atraso de 300 ms (tempo limite de 1 s) | 100 × 3 | 2 min |
+| `D-atraso-acima-do-tempo-limite` | Atraso de 1.200 ms (tempo limite de 1 s) | 30 × 3 | 2 min |
+| `E-queda-do-servico` | Processo do serviço encerrado após 100 amostras | até 200 × 3 | 1 min |
 
 **O que o script faz em cada repetição:**
 - sobe o serviço num processo próprio, com banco temporário novo e as variáveis de falha do cenário;
 - envia as requisições de aquecimento, que são descartadas;
 - mede `GET /produtos` com um cliente único e sequencial. Cada requisição leva um `X-Correlation-ID` próprio e tempo limite explícito;
-- encerra o serviço.
+- no cenário `E`, derruba o serviço no meio da medição;
+- interrompe a repetição se atingir o critério de parada (padrão: 20 erros de transporte seguidos);
+- aguarda 2 s para o serviço concluir requisições que o cliente já abandonou, e então o encerra.
 
 **Classificação de cada requisição** (feita do ponto de vista do cliente):
 
-| Resultado | Significado |
-|---|---|
-| `success` | Resposta HTTP 2xx |
-| `application_error` | O serviço respondeu, mas com status de erro (4xx/5xx) |
-| `transport_error` | Nenhuma resposta chegou: `timeout` ou `connection_error` |
+| Resultado | Tipo | Significado |
+|---|---|---|
+| `success` | — | Resposta HTTP 2xx |
+| `application_error` | status HTTP | O serviço respondeu, mas com status de erro (4xx/5xx) |
+| `transport_error` | `connect_timeout` | A conexão nem foi estabelecida a tempo: o serviço não recebeu a requisição |
+| `transport_error` | `connection_error` | Conexão recusada ou interrompida |
+| `transport_error` | `read_timeout` | A requisição foi enviada, mas a resposta não chegou a tempo: o serviço **pode tê-la executado** |
+
+**Correlação automática.** Ao final, o script cruza `cliente.log` e `servico.log` pelo `correlation_id`. Para cada tipo de resultado visto pelo cliente, registra em `resultados.json` o que o serviço viu:
+- quantas requisições chegaram ao serviço;
+- com qual status;
+- se o erro foi falha injetada;
+- a mediana da duração no cliente e no serviço.
 
 **Métricas:**
 - latência das respostas de sucesso: mínimo, média, desvio padrão, p50, p95, p99 e máximo;
@@ -159,11 +176,13 @@ Os percentis usam o método do **posto mais próximo**: o menor valor observado 
 | `--tempo-limite` | 1,0 s por requisição |
 | `--reaproveitar-conexao` | Desligado: cada requisição abre uma conexão TCP nova |
 
-**Evidências gravadas em `experimentos/<cenário>/`:**
+Os valores da tabela são os padrões gerais. Um cenário pode definir os seus (veja a tabela de cenários), e o que for passado na linha de comando prevalece sobre os dois.
+
+**Evidências gravadas em `experimentos/<cenário>/<início em UTC>/`.** Cada execução cria uma subpasta própria, e execuções anteriores nunca são sobrescritas.
 
 | Arquivo | Conteúdo |
 |---|---|
-| `resultados.json` | Hipótese, parâmetros, ambiente (SO, Python, bibliotecas, commit) e métricas por repetição e agregadas |
+| `resultados.json` | Hipótese, perturbação, critério de parada, parâmetros, ambiente (SO, Python, bibliotecas, commit) e métricas por repetição e agregadas. Também traz a correlação entre cliente e serviço |
 | `cliente.log` | Uma linha JSON por requisição do cliente, com `correlation_id`, `duration_ms` e `outcome` |
 | `servico.log` | Saída do serviço, com uma linha JSON por requisição |
 
