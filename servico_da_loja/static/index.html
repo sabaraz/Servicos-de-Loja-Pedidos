@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Serviço da Loja</title>
+<style>
+  body { font-family: monospace; max-width: 760px; margin: 20px auto; padding: 0 12px; color: #111; }
+  h1 { font-size: 1.1rem; border-bottom: 2px solid #111; padding-bottom: 6px; }
+  h2 { font-size: 0.95rem; margin-top: 22px; }
+  section { border: 1px solid #999; padding: 10px 14px; margin-bottom: 14px; }
+  label { display: inline-block; width: 90px; }
+  select, input { font-family: monospace; padding: 3px; margin-bottom: 6px; }
+  button { font-family: monospace; padding: 4px 10px; margin: 4px 6px 4px 0; cursor: pointer; }
+  button:disabled { cursor: default; opacity: 0.5; }
+  table { border-collapse: collapse; width: 100%; margin-top: 6px; }
+  td, th { border: 1px solid #ccc; padding: 3px 6px; text-align: left; font-size: 0.85rem; }
+  .total { font-weight: bold; margin-top: 6px; }
+  .erro { color: #a00; font-weight: bold; }
+  #execucao { max-height: 480px; overflow-y: auto; background: #f7f7f7; }
+  .chamada { border-top: 2px solid #111; padding: 8px 0; }
+  .chamada:first-child { border-top: none; }
+  .linha { margin: 2px 0; white-space: pre-wrap; }
+  .tag { font-weight: bold; }
+  .seta { color: #777; margin: 2px 0; }
+  details summary { cursor: pointer; }
+  a.documentacao { font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<h1>SERVIÇO DA LOJA</h1>
+<p style="font-size:0.8rem">Esta tela executa o fluxo de pedido e mostra, para cada chamada, o caminho percorrido dentro do serviço. Referência técnica da API em <a class="documentacao" href="/docs">/docs</a>.</p>
+
+<section>
+  <h2>1. Produto</h2>
+  <div>
+    <label>Produto</label>
+    <select id="selProduto"></select>
+  </div>
+  <div>
+    <label>Quantidade</label>
+    <input id="inQtd" type="number" value="1" min="1" style="width:60px">
+  </div>
+  <button id="btnAbrir">Abrir pedido</button>
+  <button id="btnAdicionar" disabled>Adicionar item</button>
+</section>
+
+<section id="secPedido" style="display:none">
+  <h2>Pedido <span id="pedidoId"></span></h2>
+  <div>Status: <b id="pedidoStatus"></b></div>
+  <table id="tabelaItens">
+    <thead><tr><th>Produto</th><th>Qtd</th><th>Subtotal</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div class="total">Total: <span id="pedidoTotal">0</span></div>
+  <button id="btnConfirmar">Confirmar</button>
+  <button id="btnCancelar">Cancelar</button>
+</section>
+
+<section>
+  <h2>EXECUÇÃO</h2>
+  <div id="execucao"><p style="color:#777">Cada chamada feita por esta tela aparece aqui, com os eventos registrados pelo serviço.</p></div>
+</section>
+
+<script>
+const BASE = "";
+// Tempo maximo de espera por resposta; depois disso a chamada e abortada e
+// exibida como falha de transporte (sem resposta do servico).
+const TEMPO_LIMITE_DAS_CHAMADAS_EM_MILISSEGUNDOS = 5000;
+
+// Pedido em edicao; o identificador fica guardado aqui e nunca e digitado.
+let pedidoAtual = null;
+
+const ROTULOS = {
+  REQUEST_RECEIVED: "rota localizada",
+  VALIDATION_OK: "validação concluída",
+  VALIDATION_FAILED: "validação falhou",
+  RESOURCE_FOUND: "recurso localizado",
+  RESOURCE_NOT_FOUND: "recurso não encontrado",
+  BUSINESS_RULE_OK: "regra de negócio OK",
+  BUSINESS_CONFLICT: "conflito de regra de negócio",
+  SQL_SELECT: "SQL executado",
+  SQL_INSERT: "SQL executado",
+  SQL_UPDATE: "SQL executado",
+  SQL_DELETE: "SQL executado",
+  TRANSACTION_BEGIN: "transação iniciada (BEGIN IMMEDIATE)",
+  TRANSACTION_COMMIT: "transação confirmada (COMMIT)",
+  TRANSACTION_ROLLBACK: "transação desfeita (ROLLBACK)",
+  INJECTED_DELAY: "atraso injetado",
+  INJECTED_FAILURE: "falha injetada",
+  RESPONSE_SENT: "resposta enviada",
+};
+
+function criarElementoComClasseETexto(tag, cls, texto) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (texto !== undefined) e.textContent = texto;
+  return e;
+}
+
+function criarBlocoJsonRecolhivel(obj) {
+  const texto = JSON.stringify(obj);
+  if (texto.length <= 200) return document.createTextNode(texto);
+  const det = document.createElement("details");
+  det.appendChild(criarElementoComClasseETexto("summary", null, "[mostrar JSON completo]"));
+  const pre = document.createElement("pre");
+  pre.textContent = JSON.stringify(obj, null, 2);
+  det.appendChild(pre);
+  return det;
+}
+
+function adicionarLinhaRotuladaAoPainel(container, tag, conteudo) {
+  const p = criarElementoComClasseETexto("div", "linha");
+  p.appendChild(criarElementoComClasseETexto("span", "tag", `[${tag}] `));
+  if (typeof conteudo === "string") {
+    p.appendChild(document.createTextNode(conteudo));
+  } else if (conteudo !== undefined) {
+    p.appendChild(conteudo);
+  }
+  container.appendChild(p);
+  return p;
+}
+
+function adicionarSetaDeFluxoAoPainel(container) {
+  container.appendChild(criarElementoComClasseETexto("div", "seta", "↓"));
+}
+
+function gerarCorrelationIdDoNavegador() {
+  const aleatorio = (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `navegador-${aleatorio}`;
+}
+
+// fetch com tempo limite: AbortController cancela a chamada que passar de
+// TEMPO_LIMITE_DAS_CHAMADAS_EM_MILISSEGUNDOS.
+async function buscarComTempoLimite(url, opcoes) {
+  const controlador = new AbortController();
+  const temporizador = setTimeout(() => controlador.abort(), TEMPO_LIMITE_DAS_CHAMADAS_EM_MILISSEGUNDOS);
+  try {
+    return await fetch(url, { ...opcoes, signal: controlador.signal });
+  } finally {
+    clearTimeout(temporizador);
+  }
+}
+
+// Toda chamada passa por aqui, inclusive as automaticas (consultas apos
+// POST/PATCH), para que nenhuma requisicao fique fora do painel. Envia um
+// X-Correlation-ID proprio, busca o rastreamento dessa requisicao e desenha
+// o bloco de EXECUCAO. Sem resposta (tempo limite ou conexao recusada),
+// devolve status 0 e mostra o erro de transporte.
+async function chamarApiComTempoLimiteEExibirRastreamento(metodo, caminho, corpo) {
+  const cid = gerarCorrelationIdDoNavegador();
+  const opcoes = { method: metodo, headers: { "X-Correlation-ID": cid } };
+  if (corpo !== undefined) {
+    opcoes.headers["Content-Type"] = "application/json";
+    opcoes.body = JSON.stringify(corpo);
+  }
+
+  let resp;
+  try {
+    resp = await buscarComTempoLimite(BASE + caminho, opcoes);
+  } catch (erro) {
+    const motivo = erro.name === "AbortError"
+      ? `tempo limite de ${TEMPO_LIMITE_DAS_CHAMADAS_EM_MILISSEGUNDOS} ms excedido`
+      : "conexão com o serviço falhou";
+    desenharBlocoDeExecucaoDaChamada({ metodo, caminho, corpo, status: 0, data: null, cid, eventos: [], erroDeTransporte: motivo });
+    return { status: 0, data: null, cid };
+  }
+
+  let data = null;
+  try { data = await resp.json(); } catch (e) { /* corpo vazio, ex.: 204 */ }
+
+  let eventos = [];
+  try {
+    const rTrace = await buscarComTempoLimite(`${BASE}/traces/${encodeURIComponent(cid)}`, {});
+    if (rTrace.ok) eventos = (await rTrace.json()).eventos;
+  } catch (e) { /* rastreamento e auxiliar: o painel segue sem ele */ }
+
+  desenharBlocoDeExecucaoDaChamada({ metodo, caminho, corpo, status: resp.status, data, cid, eventos });
+  return { status: resp.status, data, cid };
+}
+
+function desenharBlocoDeExecucaoDaChamada({ metodo, caminho, corpo, status, data, cid, eventos, erroDeTransporte }) {
+  const bloco = criarElementoComClasseETexto("div", "chamada");
+  const painel = document.getElementById("execucao");
+  if (painel.firstChild && painel.firstChild.tagName === "P") painel.innerHTML = "";
+
+  adicionarLinhaRotuladaAoPainel(bloco, "CLIENTE", `${metodo} ${caminho}`);
+  adicionarLinhaRotuladaAoPainel(bloco, "-", `CID enviado: ${cid}`);
+  if (corpo !== undefined) {
+    const l = criarElementoComClasseETexto("div", "linha");
+    l.appendChild(document.createTextNode("JSON enviado: "));
+    l.appendChild(criarBlocoJsonRecolhivel(corpo));
+    bloco.appendChild(l);
+  }
+
+  for (const ev of eventos) {
+    adicionarSetaDeFluxoAoPainel(bloco);
+    const rotulo = ROTULOS[ev.tipo] || ev.tipo;
+    if (ev.tipo.startsWith("SQL_")) {
+      const div = criarElementoComClasseETexto("div", "linha");
+      div.appendChild(criarElementoComClasseETexto("span", "tag", "[SQL] "));
+      div.appendChild(document.createTextNode(rotulo));
+      const pre = document.createElement("pre");
+      pre.textContent = ev.sql + "\nparâmetros: " + JSON.stringify(ev.parametros) +
+        (ev.linhas_afetadas !== undefined ? "\nlinhas afetadas: " + ev.linhas_afetadas : "");
+      bloco.appendChild(div);
+      bloco.appendChild(pre);
+    } else if (ev.tipo.startsWith("TRANSACTION_")) {
+      adicionarLinhaRotuladaAoPainel(bloco, "TRANSAÇÃO", rotulo);
+    } else if (ev.tipo === "RESOURCE_FOUND" || ev.tipo === "RESOURCE_NOT_FOUND") {
+      adicionarLinhaRotuladaAoPainel(bloco, "RECURSO", `${rotulo}: ${ev.recurso} ${ev.id}`);
+    } else if (ev.tipo === "BUSINESS_RULE_OK" || ev.tipo === "BUSINESS_CONFLICT") {
+      adicionarLinhaRotuladaAoPainel(bloco, "REGRA", ev.regra || ev.motivo || rotulo);
+    } else if (ev.tipo === "VALIDATION_OK" || ev.tipo === "VALIDATION_FAILED") {
+      adicionarLinhaRotuladaAoPainel(bloco, "VALIDAÇÃO", ev.erros ? JSON.stringify(ev.erros) : rotulo);
+    } else if (ev.tipo === "INJECTED_DELAY") {
+      adicionarLinhaRotuladaAoPainel(bloco, "FALHA INJETADA", `${rotulo}: ${ev.atraso_ms} ms`);
+    } else if (ev.tipo === "INJECTED_FAILURE") {
+      adicionarLinhaRotuladaAoPainel(bloco, "FALHA INJETADA", `${rotulo}: HTTP ${ev.status}`);
+    } else if (ev.tipo === "REQUEST_RECEIVED") {
+      adicionarLinhaRotuladaAoPainel(bloco, "SERVIDOR", `${rotulo}: ${ev.method} ${ev.path}`);
+    } else if (ev.tipo === "RESPONSE_SENT") {
+      adicionarLinhaRotuladaAoPainel(bloco, "RESPOSTA", `HTTP ${ev.status}`);
+      adicionarLinhaRotuladaAoPainel(bloco, "-", `duração no servidor: ${ev.duracao_ms} ms`);
+    }
+  }
+
+  adicionarSetaDeFluxoAoPainel(bloco);
+  const textoRecebido = erroDeTransporte ? `sem resposta (${erroDeTransporte})` : `${status}`;
+  const linhaResp = adicionarLinhaRotuladaAoPainel(bloco, "CLIENTE RECEBEU", textoRecebido);
+  if (erroDeTransporte || status >= 400) linhaResp.className = "linha erro";
+  if (data !== null) {
+    const l = criarElementoComClasseETexto("div", "linha");
+    l.appendChild(document.createTextNode("Resposta: "));
+    l.appendChild(criarBlocoJsonRecolhivel(data));
+    bloco.appendChild(l);
+  }
+
+  painel.insertBefore(bloco, painel.firstChild);
+}
+
+async function carregarProdutosNoSeletor() {
+  const { status, data } = await chamarApiComTempoLimiteEExibirRastreamento("GET", "/produtos");
+  if (status !== 200) return;
+  const sel = document.getElementById("selProduto");
+  sel.innerHTML = "";
+  for (const p of data) {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = `${p.nome} (estoque: ${p.estoque})`;
+    sel.appendChild(opt);
+  }
+}
+
+// Celulas preenchidas por textContent: o nome do produto e dado informado
+// por usuarios e nunca e interpretado como HTML.
+function adicionarLinhaDeItemNaTabela(corpo, item) {
+  const tr = document.createElement("tr");
+  for (const valor of [item.produto_nome, item.quantidade, item.subtotal]) {
+    tr.appendChild(criarElementoComClasseETexto("td", null, String(valor)));
+  }
+  corpo.appendChild(tr);
+}
+
+async function atualizarPainelDoPedidoAtual() {
+  if (!pedidoAtual) return;
+  const respostaItens = await chamarApiComTempoLimiteEExibirRastreamento("GET", `/pedidos/${pedidoAtual.id}/itens`);
+  const respostaPedido = await chamarApiComTempoLimiteEExibirRastreamento("GET", `/pedidos/${pedidoAtual.id}`);
+  if (respostaItens.status !== 200 || respostaPedido.status !== 200) return;
+  const itens = respostaItens.data;
+  const pedido = respostaPedido.data;
+  pedidoAtual.status = pedido.status;
+
+  document.getElementById("secPedido").style.display = "block";
+  document.getElementById("pedidoId").textContent = `#${pedido.id}`;
+  document.getElementById("pedidoStatus").textContent = pedido.status.toUpperCase();
+  document.getElementById("pedidoTotal").textContent = pedido.valor_total;
+
+  const corpo = document.querySelector("#tabelaItens tbody");
+  corpo.innerHTML = "";
+  for (const item of itens) adicionarLinhaDeItemNaTabela(corpo, item);
+
+  const aberto = pedido.status === "aberto";
+  document.getElementById("btnAdicionar").disabled = !aberto;
+  document.getElementById("btnConfirmar").disabled = !aberto;
+  document.getElementById("btnCancelar").disabled = pedido.status !== "aberto" && pedido.status !== "confirmado";
+}
+
+async function abrirPedidoAoClicar() {
+  const { status, data } = await chamarApiComTempoLimiteEExibirRastreamento("POST", "/pedidos");
+  if (status === 201 || status === 200) {
+    pedidoAtual = { id: data.id, status: data.status };
+    await atualizarPainelDoPedidoAtual();
+  }
+}
+
+async function adicionarItemAoClicar() {
+  if (!pedidoAtual) return;
+  const produto_id = Number(document.getElementById("selProduto").value);
+  const quantidade = Number(document.getElementById("inQtd").value);
+  await chamarApiComTempoLimiteEExibirRastreamento("POST", `/pedidos/${pedidoAtual.id}/itens`, { produto_id, quantidade });
+  await atualizarPainelDoPedidoAtual();
+}
+
+async function confirmarPedidoAoClicar() {
+  if (!pedidoAtual) return;
+  await chamarApiComTempoLimiteEExibirRastreamento("PATCH", `/pedidos/${pedidoAtual.id}`, { status: "confirmado" });
+  await atualizarPainelDoPedidoAtual();
+  await carregarProdutosNoSeletor();
+}
+
+async function cancelarPedidoAoClicar() {
+  if (!pedidoAtual) return;
+  await chamarApiComTempoLimiteEExibirRastreamento("PATCH", `/pedidos/${pedidoAtual.id}`, { status: "cancelado" });
+  await atualizarPainelDoPedidoAtual();
+  await carregarProdutosNoSeletor();
+}
+
+document.getElementById("btnAbrir").addEventListener("click", abrirPedidoAoClicar);
+document.getElementById("btnAdicionar").addEventListener("click", adicionarItemAoClicar);
+document.getElementById("btnConfirmar").addEventListener("click", confirmarPedidoAoClicar);
+document.getElementById("btnCancelar").addEventListener("click", cancelarPedidoAoClicar);
+
+carregarProdutosNoSeletor();
+</script>
+</body>
+</html>

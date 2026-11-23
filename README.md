@@ -49,6 +49,10 @@ python -m uvicorn servico_da_loja.aplicacao_web:app --host 127.0.0.1 --port 8000
 
 - O servidor roda sem recarga automática, para que as medições não sejam afetadas.
 - O banco `servico_da_loja/loja.db` é criado na primeira inicialização, já com três produtos de exemplo. Para recomeçar do zero, pare o serviço e apague esse arquivo.
+- Tela de operação: `http://127.0.0.1:8000/`.
+  - Executa o fluxo de pedido: abrir, adicionar item, confirmar ou cancelar.
+  - Para cada chamada, mostra o `X-Correlation-ID` enviado, os eventos internos do serviço e a resposta.
+  - Toda chamada tem tempo limite de 5 s. Sem resposta, a tela mostra a falha de transporte (tempo limite ou conexão recusada).
 - Documentação interativa: `http://127.0.0.1:8000/docs`.
 
 ### 5.1 Correlação e logs
