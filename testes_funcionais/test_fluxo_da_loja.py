@@ -235,6 +235,44 @@ class TestesFuncionaisDoFluxoDaLoja(unittest.TestCase):
         resposta = self._enviarRequisicaoComCorrelationId("DELETE", f"/produtos/{produto['id']}")
         self.assertEqual(resposta.status_code, 409, self._descreverRespostaParaMensagemDeFalha(resposta))
 
+    def testRemoverProdutoSemPedidosDevolveSemConteudo204EDeixaDeExistir(self) -> None:
+        produto = self._cadastrarProdutoDeTesteComNomeUnico()
+        remocao = self._enviarRequisicaoComCorrelationId("DELETE", f"/produtos/{produto['id']}")
+        self.assertEqual(remocao.status_code, 204, self._descreverRespostaParaMensagemDeFalha(remocao))
+        consulta = self._enviarRequisicaoComCorrelationId("GET", f"/produtos/{produto['id']}")
+        self.assertEqual(consulta.status_code, 404, self._descreverRespostaParaMensagemDeFalha(consulta))
+
+    def testSubstituirProdutoExistenteDevolveEGravaOsDadosNovos(self) -> None:
+        produto = self._cadastrarProdutoDeTesteComNomeUnico(preco=350.0, estoque=5)
+        dados_novos = {"nome": f"produto-alterado-{uuid.uuid4().hex[:8]}", "preco": 420.0, "estoque": 9}
+        resposta = self._enviarRequisicaoComCorrelationId("PUT", f"/produtos/{produto['id']}", json=dados_novos)
+        self.assertEqual(resposta.status_code, 200, self._descreverRespostaParaMensagemDeFalha(resposta))
+        self.assertEqual(resposta.json(), {"id": produto["id"], **dados_novos})
+        consulta = self._enviarRequisicaoComCorrelationId("GET", f"/produtos/{produto['id']}")
+        self.assertEqual(consulta.json(), {"id": produto["id"], **dados_novos})
+
+    def testSubstituirProdutoInexistenteDevolveNaoEncontrado404(self) -> None:
+        resposta = self._enviarRequisicaoComCorrelationId(
+            "PUT", "/produtos/999999",
+            json={"nome": f"produto-fantasma-{uuid.uuid4().hex[:8]}", "preco": 10.0, "estoque": 1},
+        )
+        self.assertEqual(resposta.status_code, 404, self._descreverRespostaParaMensagemDeFalha(resposta))
+
+    def testSubstituirProdutoComNomeDeOutroProdutoDevolveConflito409(self) -> None:
+        primeiro = self._cadastrarProdutoDeTesteComNomeUnico()
+        segundo = self._cadastrarProdutoDeTesteComNomeUnico()
+        resposta = self._enviarRequisicaoComCorrelationId(
+            "PUT", f"/produtos/{segundo['id']}", json={"nome": primeiro["nome"], "preco": 10.0, "estoque": 1},
+        )
+        self.assertEqual(resposta.status_code, 409, self._descreverRespostaParaMensagemDeFalha(resposta))
+
+    def testCadastrarProdutoComPrecoNegativoDevolveErroDeValidacao422(self) -> None:
+        resposta = self._enviarRequisicaoComCorrelationId(
+            "POST", "/produtos",
+            json={"nome": f"produto-invalido-{uuid.uuid4().hex[:8]}", "preco": -1.0, "estoque": 1},
+        )
+        self.assertEqual(resposta.status_code, 422, self._descreverRespostaParaMensagemDeFalha(resposta))
+
     # -----------------------------------------------------------------------
     # Pedidos e itens
     # -----------------------------------------------------------------------
@@ -301,6 +339,80 @@ class TestesFuncionaisDoFluxoDaLoja(unittest.TestCase):
             "PATCH", f"/pedidos/{pedido_id}", json={"status": "cancelado"},
         )
         self.assertEqual(repeticao.status_code, 409, self._descreverRespostaParaMensagemDeFalha(repeticao))
+
+    def testCancelarPedidoAbertoDevolveCanceladoSemAlterarEstoque(self) -> None:
+        produto = self._cadastrarProdutoDeTesteComNomeUnico(estoque=5)
+        pedido_id = self._abrirPedidoComItem(produto["id"], quantidade=2)
+        resposta = self._enviarRequisicaoComCorrelationId(
+            "PATCH", f"/pedidos/{pedido_id}", json={"status": "cancelado"},
+        )
+        self.assertEqual(resposta.status_code, 200, self._descreverRespostaParaMensagemDeFalha(resposta))
+        self.assertEqual(resposta.json()["status"], "cancelado")
+        self.assertEqual(self._consultarEstoqueDoProduto(produto["id"]), 5)
+
+    def testConfirmarPedidoSemItensDevolveConflito409(self) -> None:
+        pedido = self._enviarRequisicaoComCorrelationId("POST", "/pedidos")
+        resposta = self._enviarRequisicaoComCorrelationId(
+            "PATCH", f"/pedidos/{pedido.json()['id']}", json={"status": "confirmado"},
+        )
+        self.assertEqual(resposta.status_code, 409, self._descreverRespostaParaMensagemDeFalha(resposta))
+
+    def testAtualizarPedidoComStatusInvalidoDevolveErroDeValidacao422(self) -> None:
+        produto = self._cadastrarProdutoDeTesteComNomeUnico()
+        pedido_id = self._abrirPedidoComItem(produto["id"], quantidade=1)
+        resposta = self._enviarRequisicaoComCorrelationId(
+            "PATCH", f"/pedidos/{pedido_id}", json={"status": "entregue"},
+        )
+        self.assertEqual(resposta.status_code, 422, self._descreverRespostaParaMensagemDeFalha(resposta))
+
+    def testAdicionarItemEmPedidoConfirmadoDevolveConflito409(self) -> None:
+        produto = self._cadastrarProdutoDeTesteComNomeUnico()
+        pedido_id = self._abrirPedidoComItem(produto["id"], quantidade=1)
+        self._enviarRequisicaoComCorrelationId("PATCH", f"/pedidos/{pedido_id}", json={"status": "confirmado"})
+        resposta = self._enviarRequisicaoComCorrelationId(
+            "POST", f"/pedidos/{pedido_id}/itens", json={"produto_id": produto["id"], "quantidade": 1},
+        )
+        self.assertEqual(resposta.status_code, 409, self._descreverRespostaParaMensagemDeFalha(resposta))
+
+    def testAdicionarItemComProdutoInexistenteDevolveNaoEncontrado404(self) -> None:
+        pedido = self._enviarRequisicaoComCorrelationId("POST", "/pedidos")
+        resposta = self._enviarRequisicaoComCorrelationId(
+            "POST", f"/pedidos/{pedido.json()['id']}/itens", json={"produto_id": 999999, "quantidade": 1},
+        )
+        self.assertEqual(resposta.status_code, 404, self._descreverRespostaParaMensagemDeFalha(resposta))
+
+    def testListarItensDoPedidoDevolveCadaItemComNomeESubtotal(self) -> None:
+        teclado = self._cadastrarProdutoDeTesteComNomeUnico(preco=350.0)
+        mouse = self._cadastrarProdutoDeTesteComNomeUnico(preco=100.0)
+        pedido_id = self._abrirPedidoComItem(teclado["id"], quantidade=2)
+        self._enviarRequisicaoComCorrelationId(
+            "POST", f"/pedidos/{pedido_id}/itens", json={"produto_id": mouse["id"], "quantidade": 3},
+        )
+        resposta = self._enviarRequisicaoComCorrelationId("GET", f"/pedidos/{pedido_id}/itens")
+        self.assertEqual(resposta.status_code, 200, self._descreverRespostaParaMensagemDeFalha(resposta))
+        itens = {item["produto_nome"]: item["subtotal"] for item in resposta.json()}
+        self.assertEqual(itens, {teclado["nome"]: 700.0, mouse["nome"]: 300.0})
+
+    def testListarPedidosIncluiPedidoCriadoComValorTotal(self) -> None:
+        produto = self._cadastrarProdutoDeTesteComNomeUnico(preco=350.0)
+        pedido_id = self._abrirPedidoComItem(produto["id"], quantidade=2)
+        resposta = self._enviarRequisicaoComCorrelationId("GET", "/pedidos")
+        self.assertEqual(resposta.status_code, 200, self._descreverRespostaParaMensagemDeFalha(resposta))
+        pedidos = {pedido["id"]: pedido for pedido in resposta.json()}
+        self.assertIn(pedido_id, pedidos)
+        self.assertEqual(pedidos[pedido_id]["valor_total"], 700.0)
+
+    def testRotasDePedidoInexistenteDevolvemNaoEncontrado404(self) -> None:
+        requisicoes = [
+            ("GET", "/pedidos/999999", None),
+            ("GET", "/pedidos/999999/itens", None),
+            ("POST", "/pedidos/999999/itens", {"produto_id": 1, "quantidade": 1}),
+            ("PATCH", "/pedidos/999999", {"status": "confirmado"}),
+        ]
+        for metodo, caminho, corpo in requisicoes:
+            with self.subTest(metodo=metodo, caminho=caminho):
+                resposta = self._enviarRequisicaoComCorrelationId(metodo, caminho, json=corpo)
+                self.assertEqual(resposta.status_code, 404, self._descreverRespostaParaMensagemDeFalha(resposta))
 
     # -----------------------------------------------------------------------
     # Concorrencia

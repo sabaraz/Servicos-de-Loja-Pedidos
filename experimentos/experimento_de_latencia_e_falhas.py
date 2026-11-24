@@ -474,18 +474,27 @@ def correlacionarLogDoClienteComLogDoServico(pasta_da_execucao: Path) -> dict:
 # ---------------------------------------------------------------------------
 
 def coletarDescricaoDoAmbienteDeExecucao() -> dict:
-    """Versoes e commit usados, para o relatorio (sem nome de maquina ou usuario)."""
+    """Versoes e commit usados, para o relatorio (sem nome de maquina ou usuario).
+
+    Fora de um repositorio Git (ex.: projeto copiado sem a pasta .git), commit
+    e alteracoes pendentes ficam None (desconhecidos), e nao False.
+    """
+    commit, alteracoes_pendentes = None, None
     try:
-        commit = subprocess.run(
+        consulta_do_commit = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"], cwd=RAIZ_DO_REPOSITORIO,
             capture_output=True, text=True, timeout=5,
-        ).stdout.strip() or None
-        alteracoes_pendentes = bool(subprocess.run(
-            ["git", "status", "--porcelain", "--", ".", ":(exclude)experimentos/*/*/"],
-            cwd=RAIZ_DO_REPOSITORIO, capture_output=True, text=True, timeout=5,
-        ).stdout.strip())
+        )
+        if consulta_do_commit.returncode == 0:
+            commit = consulta_do_commit.stdout.strip() or None
+            consulta_de_alteracoes = subprocess.run(
+                ["git", "status", "--porcelain", "--", ".", ":(exclude)experimentos/*/*/"],
+                cwd=RAIZ_DO_REPOSITORIO, capture_output=True, text=True, timeout=5,
+            )
+            if consulta_de_alteracoes.returncode == 0:
+                alteracoes_pendentes = bool(consulta_de_alteracoes.stdout.strip())
     except (OSError, subprocess.SubprocessError):
-        commit, alteracoes_pendentes = None, None
+        pass
     return {
         "sistema_operacional": platform.platform(),
         "python": platform.python_version(),

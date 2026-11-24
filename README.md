@@ -99,12 +99,13 @@ python -m unittest -v
 ```
 
 - Não é preciso subir o serviço antes. O teste o inicia em um processo separado, numa porta livre e com um banco temporário, e o encerra ao final. O banco `servico_da_loja/loja.db` não é tocado.
-- São 16 cenários em condição nominal, cada um criando os próprios dados:
-  - sucesso e conflito (409) no cadastro;
-  - recurso inexistente (404);
+- São 29 cenários em condição nominal, cada um criando os próprios dados. Todas as rotas de produtos e pedidos são chamadas ao menos uma vez:
+  - sucesso (200, 201, 204), conflito (409), recurso inexistente (404) e validação (422);
+  - cadastro, consulta, substituição e remoção de produto;
+  - listagem de pedidos e de itens, com valor total e subtotal;
   - idempotência sequencial e concorrente;
   - soma de quantidade do item;
-  - confirmação, cancelamento e estoque;
+  - todas as transições de pedido (confirmar, cancelar aberto, cancelar confirmado) e o efeito no estoque;
   - duas confirmações simultâneas;
   - tempo limite curto e suficiente;
   - correlação por `X-Correlation-ID`.
@@ -188,7 +189,27 @@ Os valores da tabela são os padrões gerais. Um cenário pode definir os seus (
 
 O mesmo `correlation_id` aparece nos dois logs. Assim, dá para separar o tempo gasto dentro do serviço (`duration_ms` do `servico.log`) do tempo total visto pelo cliente (`duration_ms` do `cliente.log`).
 
-## 8. Convenção de nomes
+## 8. Relatório técnico
+
+O relatório segue as dez seções do modelo de relatório técnico da disciplina.
+
+| Arquivo | Papel |
+|---|---|
+| `relatorio/relatorio.html` | Fonte do relatório, escrita diretamente em HTML |
+| `relatorio/estilo/relatorio_estilo.css` | Folha de estilo (A4, tipografia, tabelas, blocos de código) |
+| `relatorio/relatorio_AP9.pdf` | Versão impressa |
+
+Para gerar o PDF de novo, use o Microsoft Edge em modo headless. No PowerShell, a partir da raiz do repositório:
+
+```powershell
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless --disable-gpu --no-pdf-header-footer --print-to-pdf="$PWD\relatorio\relatorio_AP9.pdf" "$PWD\relatorio\relatorio.html"
+```
+
+- Os números de página do sumário estão escritos no HTML. Se uma edição mudar a paginação, atualize-os à mão.
+- Os blocos de código mostram os números de linha reais dos arquivos deste projeto.
+- As tabelas de resultados reproduzem os `resultados.json` das execuções oficiais.
+
+## 9. Convenção de nomes
 
 O código foi escrito para ser auditado pela leitura na IDE, sem precisar executá-lo.
 
@@ -200,7 +221,7 @@ O código foi escrito para ser auditado pela leitura na IDE, sem precisar execut
 
 Linters de nomes (por exemplo, a regra N802 do ruff ou `invalid-name` do pylint) acusam as funções em `camelCase`. Esses alertas são esperados por esta convenção.
 
-## 9. Segurança e dados
+## 10. Segurança e dados
 
 - Não há senhas, tokens ou chaves no repositório.
 - Todos os dados são sintéticos de laboratório.

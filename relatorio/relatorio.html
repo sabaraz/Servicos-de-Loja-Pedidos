@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Relatório técnico — AP9 de Sistemas Distribuídos</title>
+<link rel="stylesheet" href="estilo/relatorio_estilo.css">
+<style>
+  .sumario h1 { page-break-before: avoid; }
+  .sumario ol { margin: 0; font-size: 9.5pt; }
+  .sumario li { display: flex; align-items: baseline; margin: 0; line-height: 1.45; }
+  .sumario li .titulo-sumario { flex: 1; border-bottom: 1px dotted #bbbbbb; margin-right: 6px; }
+  .sumario li.nivel-2 { padding-left: 18px; }
+  .sumario li.nivel-1 { font-weight: 600; margin-top: 5px; }
+  h1, h2, h3, .condicao { break-after: avoid; page-break-after: avoid; }
+  table { page-break-inside: auto; }
+  tr, .bloco-codigo, pre.linha-de-log, pre.diagrama { page-break-inside: avoid; break-inside: avoid; }
+  thead { display: table-header-group; }
+  pre { font-size: 8pt; }
+  table.medidas { font-size: 8.5pt; }
+  table.medidas td:not(:first-child), table.medidas th:not(:first-child) { text-align: right; }
+  pre.diagrama { background: #f6f6f6; color: #1c1c1c; border: 1px solid #dddddd; font: 8pt/1.35 Consolas, monospace; white-space: pre; }
+  pre.linha-de-log { background: #f6f6f6; color: #1c1c1c; border: 1px solid #dddddd; font: 8pt/1.4 Consolas, monospace; white-space: pre-wrap; word-break: break-all; }
+  h2.experimento { color: var(--destaque); }
+  .condicao { font-style: italic; color: var(--secundario); }
+  p, li { text-align: justify; }
+</style>
+</head>
+<body>
+
+<!-- ===================================================================== CAPA -->
+<div class="capa">
+  <img class="logo" src="estilo/logo_ifmg_campus_ouro_branco.png" alt="Instituto Federal de Minas Gerais — Campus Ouro Branco">
+  <div class="titulo">Medição de latência, erros e correlação de logs em um serviço HTTP de loja</div>
+  <div class="tipo">Relatório técnico</div>
+  <div class="trabalho">Atividade Prática 9 (AP9) de Sistemas Distribuídos</div>
+  <div class="frase">A média esconde a cauda; a correlação mostra onde o tempo é gasto.</div>
+  <div class="autor">Gustavo Sabara Barbosa</div>
+  <div class="trabalho" style="margin-top:4mm">Novembro de 2026</div>
+</div>
+
+<!-- ===================================================================== SUMARIO -->
+<div class="sumario">
+<h1>Sumário</h1>
+<ol>
+<li class="nivel-1"><a class="titulo-sumario" href="#s1">1. Identificação</a><span class="pagina">3</span></li>
+<li class="nivel-1"><a class="titulo-sumario" href="#s2">2. Objetivo e hipótese dos experimentos</a><span class="pagina">4</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s2-1">2.1 Objetivo</a><span class="pagina">4</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s2-2">2.2 Premissas do projeto</a><span class="pagina">4</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s2-3">2.3 Hipóteses dos experimentos</a><span class="pagina">4</span></li>
+<li class="nivel-1"><a class="titulo-sumario" href="#s3">3. Arquitetura e componentes</a><span class="pagina">5</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s3-1">3.1 Visão geral</a><span class="pagina">5</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s3-2">3.2 Componentes</a><span class="pagina">5</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s3-3">3.3 Regras do serviço: idempotência e concorrência</a><span class="pagina">6</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s3-4">3.4 Correlação e log estruturado</a><span class="pagina">8</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s3-5">3.5 Falha controlada</a><span class="pagina">10</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s3-6">3.6 Proteções verificadas</a><span class="pagina">11</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s3-7">3.7 Tempo limite em todas as chamadas remotas</a><span class="pagina">11</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s3-8">3.8 Instrumento de medição</a><span class="pagina">12</span></li>
+<li class="nivel-1"><a class="titulo-sumario" href="#s4">4. Ambiente e versões</a><span class="pagina">14</span></li>
+<li class="nivel-1"><a class="titulo-sumario" href="#s5">5. Procedimento de execução</a><span class="pagina">15</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s5-1">5.1 Preparação (uma vez)</a><span class="pagina">15</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s5-2">5.2 Execução</a><span class="pagina">15</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s5-3">5.3 Comandos dos experimentos</a><span class="pagina">15</span></li>
+<li class="nivel-1"><a class="titulo-sumario" href="#s6">6. Resultados: tabelas, logs e medidas</a><span class="pagina">16</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s6-1">6.1 Teste funcional</a><span class="pagina">16</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s6-2">E1. Cenário nominal</a><span class="pagina">17</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s6-3">E1. Variante com conexão reaproveitada</a><span class="pagina">17</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s6-4">E2. Falha de aplicação (503)</a><span class="pagina">18</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s6-5">E3. Atraso abaixo do tempo limite</a><span class="pagina">18</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s6-6">E4. Atraso acima do tempo limite</a><span class="pagina">19</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s6-7">E5. Queda do serviço</a><span class="pagina">19</span></li>
+<li class="nivel-1"><a class="titulo-sumario" href="#s7">7. Discussão</a><span class="pagina">21</span></li>
+<li class="nivel-1"><a class="titulo-sumario" href="#s8">8. Falhas e limitações</a><span class="pagina">23</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s8-1">8.1 Ambiente de medição</a><span class="pagina">23</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s8-2">8.2 Desenho experimental</a><span class="pagina">23</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s8-3">8.3 Serviço</a><span class="pagina">24</span></li>
+<li class="nivel-1"><a class="titulo-sumario" href="#s9">9. Conclusão</a><span class="pagina">25</span></li>
+<li class="nivel-1"><a class="titulo-sumario" href="#s10">10. Referências</a><span class="pagina">26</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s10-1">10.1 Enunciado e material da disciplina</a><span class="pagina">26</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s10-2">10.2 Conceitos</a><span class="pagina">26</span></li>
+<li class="nivel-2"><a class="titulo-sumario" href="#s10-3">10.3 Documentação das ferramentas</a><span class="pagina">26</span></li>
+</ol>
+</div>
+
+<!-- ===================================================================== 1 -->
+<h1 id="s1">1. Identificação</h1>
+
+<table>
+<thead><tr><th style="width:28%">Item</th><th>Conteúdo</th></tr></thead>
+<tbody>
+<tr><td>Disciplina</td><td>Sistemas Distribuídos</td></tr>
+<tr><td>Trabalho</td><td>Atividade Prática 9 (AP9): testes, observabilidade e medição em sistemas distribuídos</td></tr>
+<tr><td>Autor</td><td>Gustavo Sabara Barbosa</td></tr>
+<tr><td>Instituição</td><td>Instituto Federal de Minas Gerais (IFMG), Campus Ouro Branco</td></tr>
+</tbody>
+</table>
+
+<p><strong>Tema.</strong> O trabalho mede um serviço HTTP de loja (produtos, pedidos e itens) como um sistema distribuído: cliente e serviço são processos separados que só se comunicam pela rede. O foco não é a regra de negócio, e sim três perguntas: quanto tempo cada operação leva, como ela falha e como uma mesma operação é reconhecida nos dois lados da comunicação. Para isso o serviço foi preparado com correlação por <code>X-Correlation-ID</code>, log estruturado em JSON e injeção controlada de falhas. Um script de experimento mede latência por percentis, separa erros de aplicação de erros de transporte e cruza o log do cliente com o log do serviço.</p>
+
+<p><strong>Limite do projeto.</strong> Todos os processos executam na mesma máquina, pela interface de loopback (<code>127.0.0.1</code>), com um cliente único e sequencial. Os números valem como comparação entre cenários sob as mesmas condições. Não são garantia de desempenho nem medida de rede real. Os dados são sintéticos e não há autenticação, porque o objeto de estudo é a observação do comportamento sob falha.</p>
+
+<!-- ===================================================================== 2 -->
+<h1 id="s2">2. Objetivo e hipótese dos experimentos</h1>
+
+<h2 id="s2-1">2.1 Objetivo</h2>
+<p>Distinguir teste funcional de experimento distribuído e coletar, com procedimento reprodutível, latência, taxa de erro e throughput de um serviço HTTP. Os erros de aplicação e de transporte são contados separadamente. Cada requisição é correlacionada entre cliente e serviço, e cada cenário de falha é declarado com hipótese, perturbação e critério de parada antes da execução.</p>
+
+<h2 id="s2-2">2.2 Premissas do projeto</h2>
+<ul>
+<li>O teste "funciona no meu computador" é insuficiente</li>
+<li>Métricas essenciais</li>
+<li>Correlação</li>
+<li>Experimento de latência simples</li>
+<li>Chaos engineering em escala didática</li>
+<li>Percentis e caudas de latência</li>
+<li>Aquecimento, tamanho da amostra e repetibilidade</li>
+<li>Logs estruturados</li>
+<li>Trace distribuído</li>
+</ul>
+
+<h2 id="s2-3">2.3 Hipóteses dos experimentos</h2>
+<p>As hipóteses foram escritas no código do experimento antes de qualquer execução oficial e são copiadas para o <code>resultados.json</code> de cada execução.</p>
+<table>
+<thead><tr><th style="width:17%">Experimento</th><th>Hipótese</th><th style="width:22%">Medida</th></tr></thead>
+<tbody>
+<tr><td>E1. Nominal</td><td>Sem falha injetada, 100% de sucesso, nenhum erro, p99 abaixo de 50 ms e média próxima do p50 (cauda curta).</td><td>Contagens, média, p50, p99</td></tr>
+<tr><td>E2. Falha de aplicação (503)</td><td>Entre 15% e 25% de respostas 503, nenhum erro de transporte; todo 503 aparece no log do serviço como falha injetada; sucessos na mesma ordem de latência de E1.</td><td>Erros por status; correlação com <code>injected_fault</code></td></tr>
+<tr><td>E3. Atraso abaixo do tempo limite</td><td>100% de sucesso, mas p50 em cerca de 300 ms mais o p50 de E1: a degradação aparece na latência, não na taxa de erro.</td><td>p50 no cliente e no serviço</td></tr>
+<tr><td>E4. Atraso acima do tempo limite</td><td>100% de <code>read_timeout</code> no cliente; mesmo assim o serviço conclui as mesmas requisições com status 200 e duração de pelo menos 1.200 ms.</td><td>Tipo de erro; status e duração no serviço</td></tr>
+<tr><td>E5. Queda do serviço</td><td>Sucesso antes da queda; depois, erro de transporte na fase de conexão, nunca <code>read_timeout</code>; nenhuma requisição posterior no log do serviço; critério de parada acionado.</td><td>Tipo de erro; presença no log do serviço</td></tr>
+</tbody>
+</table>
+
+<!-- ===================================================================== 3 -->
+<h1 id="s3">3. Arquitetura e componentes</h1>
+
+<h2 id="s3-1">3.1 Visão geral</h2>
+<pre class="diagrama">
+ Clientes                               Serviço da loja (FastAPI + Uvicorn)
+ ┌─────────────────────────┐  HTTP + id  ┌──────────────────────────────────┐
+ │ teste funcional         │ ──────────▶ │ middleware: correlação, duração, │
+ │ script de experimento   │             │   falha injetada (atraso / 503)  │
+ │ tela no navegador       │ ◀────────── │ rotas de produtos e pedidos      │
+ └────────────┬────────────┘  mesmo id   └────────┬────────────────┬────────┘
+              │ cliente.log (JSON)                │ SQL            │ servico.log (JSON)
+              ▼                                   ▼                ▼
+   experimentos/&lt;cenário&gt;/&lt;início&gt;/        SQLite (loja.db)   saída padrão
+              ▲                                                    │
+              └──────────── cruzamento pelo correlation_id ────────┘
+</pre>
+<ul>
+<li>O cliente nunca acessa o banco: toda operação passa pela API HTTP.</li>
+<li>Cada requisição leva um identificador escolhido pelo cliente, que o serviço devolve e registra.</li>
+<li>Os dois lados escrevem log em JSON; o script de experimento cruza os dois pelo identificador.</li>
+<li>Falhas são injetadas no serviço por variáveis de ambiente, sem alterar o código entre cenários.</li>
+</ul>
+
+<h2 id="s3-2">3.2 Componentes</h2>
+<table>
+<thead><tr><th style="width:15%">Componente</th><th style="width:11%">Qtd.</th><th style="width:38%">Arquivo</th><th>Papel</th></tr></thead>
+<tbody>
+<tr><td>Serviço HTTP</td><td>1 processo</td><td><code>servico_da_loja/aplicacao_web.py</code></td><td>Rotas de produtos e pedidos, middleware de correlação e log, falha injetada</td></tr>
+<tr><td>Persistência</td><td>—</td><td><code>servico_da_loja/camada_de_persistencia.py</code>, <code>esquema_e_dados_de_exemplo.sql</code></td><td>Conexão SQLite, SQL parametrizado, transação imediata, criação do esquema</td></tr>
+<tr><td>Rastreamento</td><td>—</td><td><code>servico_da_loja/rastreamento_por_requisicao.py</code></td><td>Eventos internos de cada requisição (validação, SQL, transação), em memória</td></tr>
+<tr><td>Tela de operação</td><td>navegador</td><td><code>servico_da_loja/static/index.html</code></td><td>Executa o fluxo de pedido e mostra o caminho de cada chamada</td></tr>
+<tr><td>Teste funcional</td><td>1 processo + serviço</td><td><code>testes_funcionais/test_fluxo_da_loja.py</code></td><td>29 cenários de correção em condição nominal, cobrindo todas as rotas de domínio; sobe o próprio serviço</td></tr>
+<tr><td>Experimento</td><td>1 processo + serviço</td><td><code>experimentos/experimento_de_latencia_e_falhas.py</code></td><td>Cenários, medição, classificação, correlação e evidências</td></tr>
+</tbody>
+</table>
+<p>O código segue uma convenção voltada à leitura na IDE sem execução: funções e métodos em <code>camelCase</code> com nomes que revelam a intenção, e todo o resto conforme a PEP 8. Contratos externos (JSON, SQL, cabeçalhos e campos de log) não seguem essa convenção, porque são lidos por outros programas.</p>
+
+<h2 id="s3-3">3.3 Regras do serviço: idempotência e concorrência</h2>
+<p>O banco opera em modo autocommit; os blocos que leem um estado e decidem com base nele usam uma transação imediata. <code>BEGIN IMMEDIATE</code> obtém o lock de escrita antes da primeira leitura. Uma segunda requisição concorrente só entra depois do <code>COMMIT</code> ou <code>ROLLBACK</code> da primeira, e então já enxerga o estado atualizado.</p>
+<div class="bloco-codigo"><div class="barra"><span>servico_da_loja/camada_de_persistencia.py</span><span>linhas 70 a 96</span></div><pre><code><span class="numero-linha">70</span>@contextmanager
+<span class="numero-linha">71</span><span class="tok-palavra-chave">def</span> <span class="tok-funcao">executarBlocoEmTransacaoImediataComLockDeEscrita</span>(
+<span class="numero-linha">72</span>    conn: sqlite3.Connection,
+<span class="numero-linha">73</span>) -&gt; Iterator[sqlite3.Connection]:
+<span class="numero-linha">74</span>    <span class="tok-string">&quot;&quot;&quot;Executa o bloco with como uma unica transacao atomica.</span>
+<span class="numero-linha">75</span><span class="tok-string"></span>
+<span class="numero-linha">76</span><span class="tok-string">    BEGIN IMMEDIATE obtem o lock de escrita antes de qualquer leitura do</span>
+<span class="numero-linha">77</span><span class="tok-string">    bloco. Uma requisicao concorrente so entra depois do COMMIT ou ROLLBACK</span>
+<span class="numero-linha">78</span><span class="tok-string">    da anterior e, portanto, ja enxerga o estado atualizado. Qualquer excecao</span>
+<span class="numero-linha">79</span><span class="tok-string">    dentro do bloco desfaz todas as alteracoes feitas nele.</span>
+<span class="numero-linha">80</span><span class="tok-string">    &quot;&quot;&quot;</span>
+<span class="numero-linha">81</span>    conn.execute(<span class="tok-string">&quot;BEGIN IMMEDIATE&quot;</span>)
+<span class="numero-linha">82</span>    rastreamento_por_requisicao.registrarEventoNoRastreamentoDaRequisicaoCorrente(
+<span class="numero-linha">83</span>        <span class="tok-string">&quot;TRANSACTION_BEGIN&quot;</span>
+<span class="numero-linha">84</span>    )
+<span class="numero-linha">85</span>    <span class="tok-palavra-chave">try</span>:
+<span class="numero-linha">86</span>        <span class="tok-palavra-chave">yield</span> conn
+<span class="numero-linha">87</span>        conn.execute(<span class="tok-string">&quot;COMMIT&quot;</span>)
+<span class="numero-linha">88</span>        rastreamento_por_requisicao.registrarEventoNoRastreamentoDaRequisicaoCorrente(
+<span class="numero-linha">89</span>            <span class="tok-string">&quot;TRANSACTION_COMMIT&quot;</span>
+<span class="numero-linha">90</span>        )
+<span class="numero-linha">91</span>    <span class="tok-palavra-chave">except</span> <span class="tok-builtin">Exception</span>:
+<span class="numero-linha">92</span>        conn.execute(<span class="tok-string">&quot;ROLLBACK&quot;</span>)
+<span class="numero-linha">93</span>        rastreamento_por_requisicao.registrarEventoNoRastreamentoDaRequisicaoCorrente(
+<span class="numero-linha">94</span>            <span class="tok-string">&quot;TRANSACTION_ROLLBACK&quot;</span>
+<span class="numero-linha">95</span>        )
+<span class="numero-linha">96</span>        <span class="tok-palavra-chave">raise</span></code></pre></div>
+<p class="legenda"><strong>Código 1.</strong> BEGIN IMMEDIATE obtém o lock de escrita antes de qualquer leitura do bloco; qualquer exceção desfaz tudo.</p>
+<p>A abertura de pedido aceita o cabeçalho <code>Idempotency-Key</code>. A consulta da chave e a criação do pedido ficam na mesma transação: cinco requisições simultâneas com a mesma chave produzem um único pedido (um 201 e quatro 200). A mesma técnica garante que duas confirmações simultâneas do mesmo pedido baixem o estoque uma única vez (uma recebe 200, a outra 409).</p>
+<div class="bloco-codigo"><div class="barra"><span>servico_da_loja/aplicacao_web.py</span><span>linhas 522 a 543</span></div><pre><code><span class="numero-linha">522</span><span class="tok-palavra-chave">def</span> <span class="tok-funcao">abrirPedidoRespeitandoChaveDeIdempotencia</span>(
+<span class="numero-linha">523</span>    response: Response, idempotency_key: Optional[<span class="tok-builtin">str</span>] = Header(default=<span class="tok-palavra-chave">None</span>)
+<span class="numero-linha">524</span>) -&gt; <span class="tok-builtin">dict</span>:
+<span class="numero-linha">525</span>    registrarEventoNoRastreamentoDaRequisicaoCorrente(<span class="tok-string">&quot;VALIDATION_OK&quot;</span>)
+<span class="numero-linha">526</span>    <span class="tok-palavra-chave">with</span> abrirConexaoQueFechaAoFimDaRequisicao() <span class="tok-palavra-chave">as</span> conn:
+<span class="numero-linha">527</span>        <span class="tok-comentario"># Verificar a chave e criar o pedido na mesma transacao imediata impede</span>
+<span class="numero-linha">528</span>        <span class="tok-comentario"># que duas requisicoes simultaneas com a mesma chave criem dois pedidos.</span>
+<span class="numero-linha">529</span>        <span class="tok-palavra-chave">with</span> executarBlocoEmTransacaoImediataComLockDeEscrita(conn):
+<span class="numero-linha">530</span>            <span class="tok-palavra-chave">if</span> idempotency_key:
+<span class="numero-linha">531</span>                existente = executarInstrucaoSqlParametrizadaERegistrarNoRastreamento(
+<span class="numero-linha">532</span>                    conn, <span class="tok-string">&quot;SELECT * FROM pedidos WHERE idempotency_key = ?&quot;</span>, (idempotency_key,)
+<span class="numero-linha">533</span>                ).fetchone()
+<span class="numero-linha">534</span>                <span class="tok-palavra-chave">if</span> existente:
+<span class="numero-linha">535</span>                    registrarEventoNoRastreamentoDaRequisicaoCorrente(
+<span class="numero-linha">536</span>                        <span class="tok-string">&quot;BUSINESS_RULE_OK&quot;</span>,
+<span class="numero-linha">537</span>                        regra=<span class="tok-string">&quot;idempotency_key já usada: devolve pedido existente&quot;</span>,
+<span class="numero-linha">538</span>                    )
+<span class="numero-linha">539</span>                    response.status_code = status.HTTP_200_OK
+<span class="numero-linha">540</span>                    <span class="tok-palavra-chave">return</span> {
+<span class="numero-linha">541</span>                        **<span class="tok-builtin">dict</span>(existente),
+<span class="numero-linha">542</span>                        <span class="tok-string">&quot;valor_total&quot;</span>: _calcularValorTotalDoPedidoSomandoItens(conn, existente[<span class="tok-string">&quot;id&quot;</span>]),
+<span class="numero-linha">543</span>                    }</code></pre></div>
+<p class="legenda"><strong>Código 2.</strong> A verificação da Idempotency-Key e a criação do pedido ficam na mesma transação imediata.</p>
+
+<h2 id="s3-4">3.4 Correlação e log estruturado</h2>
+<p><strong>Correlação.</strong> O identificador nasce no cliente, que conhece o início da operação. O serviço reaproveita o <code>X-Correlation-ID</code> recebido quando ele tem até 64 caracteres entre letras, dígitos, ponto, hífen e sublinhado (linha 59 de <code>aplicacao_web.py</code>). Qualquer outro valor é descartado e substituído por um UUID completo, para que o cabeçalho não injete conteúdo arbitrário nos logs. O identificador volta no cabeçalho de toda resposta, inclusive nas de erro.</p>
+<div class="bloco-codigo"><div class="barra"><span>servico_da_loja/aplicacao_web.py</span><span>linhas 161 a 166</span></div><pre><code><span class="numero-linha">161</span><span class="tok-palavra-chave">def</span> <span class="tok-funcao">_obterCorrelationIdRecebidoOuGerarNovo</span>(request: Request) -&gt; <span class="tok-builtin">str</span>:
+<span class="numero-linha">162</span>    <span class="tok-string">&quot;&quot;&quot;Reaproveita o X-Correlation-ID do cliente, se valido; senao gera um UUID.&quot;&quot;&quot;</span>
+<span class="numero-linha">163</span>    recebido = request.headers.get(<span class="tok-string">&quot;X-Correlation-ID&quot;</span>)
+<span class="numero-linha">164</span>    <span class="tok-palavra-chave">if</span> recebido <span class="tok-palavra-chave">and</span> PADRAO_DE_CORRELATION_ID_ACEITO.fullmatch(recebido):
+<span class="numero-linha">165</span>        <span class="tok-palavra-chave">return</span> recebido
+<span class="numero-linha">166</span>    <span class="tok-palavra-chave">return</span> <span class="tok-builtin">str</span>(uuid.uuid4())</code></pre></div>
+<p class="legenda"><strong>Código 3.</strong> O correlation_id do cliente é reaproveitado se for válido; caso contrário, um UUID é gerado.</p>
+<p><strong>Middleware.</strong> Toda requisição passa por um único middleware. Ele define o identificador, abre o rastreamento interno, mede a duração e, nas rotas de domínio, aplica a falha injetada. Exceções inesperadas são tratadas dentro do próprio middleware: assim o cabeçalho de correlação também chega à resposta 500.</p>
+<div class="bloco-codigo"><div class="barra"><span>servico_da_loja/aplicacao_web.py</span><span>linhas 246 a 263</span></div><pre><code><span class="numero-linha">246</span>@app.middleware(<span class="tok-string">&quot;http&quot;</span>)
+<span class="numero-linha">247</span><span class="tok-palavra-chave">async</span> <span class="tok-palavra-chave">def</span> <span class="tok-funcao">registrarLogEstruturadoECorrelacaoDeCadaRequisicao</span>(
+<span class="numero-linha">248</span>    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+<span class="numero-linha">249</span>) -&gt; Response:
+<span class="numero-linha">250</span>    correlation_id = _obterCorrelationIdRecebidoOuGerarNovo(request)
+<span class="numero-linha">251</span>    iniciarRastreamentoDaRequisicao(correlation_id)
+<span class="numero-linha">252</span>    registrarEventoNoRastreamentoDaRequisicaoCorrente(
+<span class="numero-linha">253</span>        <span class="tok-string">&quot;REQUEST_RECEIVED&quot;</span>, method=request.method, path=request.url.path
+<span class="numero-linha">254</span>    )
+<span class="numero-linha">255</span>    inicio = time.perf_counter()
+<span class="numero-linha">256</span>
+<span class="numero-linha">257</span>    <span class="tok-palavra-chave">try</span>:
+<span class="numero-linha">258</span>        <span class="tok-palavra-chave">if</span> _requisicaoEstaSujeitaAFalhaInjetada(request):
+<span class="numero-linha">259</span>            response, houve_falha_injetada = <span class="tok-palavra-chave">await</span> _aplicarFalhaInjetadaOuSeguirParaRota(
+<span class="numero-linha">260</span>                request, call_next, correlation_id
+<span class="numero-linha">261</span>            )
+<span class="numero-linha">262</span>        <span class="tok-palavra-chave">else</span>:
+<span class="numero-linha">263</span>            response, houve_falha_injetada = <span class="tok-palavra-chave">await</span> call_next(request), <span class="tok-palavra-chave">False</span></code></pre></div>
+<p class="legenda"><strong>Código 4.</strong> Todo pedido passa pelo middleware: correlação, rastreamento, cronômetro e falha injetada.</p>
+<p><strong>Log em JSON.</strong> Cada requisição gera uma linha JSON. O campo <code>operation</code> traz o nome da função da rota; o campo <code>instance</code> identifica o processo sem expor o nome da máquina, porque os logs são publicados como evidência.</p>
+<div class="bloco-codigo"><div class="barra"><span>servico_da_loja/aplicacao_web.py</span><span>linhas 81 a 97</span></div><pre><code><span class="numero-linha">81</span><span class="tok-palavra-chave">class</span> <span class="tok-funcao">FormatadorDeLogEmJson</span>(logging.Formatter):
+<span class="numero-linha">82</span>    <span class="tok-string">&quot;&quot;&quot;Converte cada registro de log em uma linha JSON com campos fixos.&quot;&quot;&quot;</span>
+<span class="numero-linha">83</span>
+<span class="numero-linha">84</span>    <span class="tok-palavra-chave">def</span> <span class="tok-funcao">format</span>(self, record: logging.LogRecord) -&gt; <span class="tok-builtin">str</span>:
+<span class="numero-linha">85</span>        linha = {
+<span class="numero-linha">86</span>            <span class="tok-string">&quot;timestamp&quot;</span>: datetime.fromtimestamp(record.created, timezone.utc).isoformat(
+<span class="numero-linha">87</span>                timespec=<span class="tok-string">&quot;milliseconds&quot;</span>
+<span class="numero-linha">88</span>            ),
+<span class="numero-linha">89</span>            <span class="tok-string">&quot;level&quot;</span>: record.levelname,
+<span class="numero-linha">90</span>            <span class="tok-string">&quot;service&quot;</span>: NOME_DO_SERVICO,
+<span class="numero-linha">91</span>            <span class="tok-string">&quot;instance&quot;</span>: INSTANCIA_DO_SERVICO,
+<span class="numero-linha">92</span>            <span class="tok-string">&quot;message&quot;</span>: record.getMessage(),
+<span class="numero-linha">93</span>        }
+<span class="numero-linha">94</span>        <span class="tok-palavra-chave">for</span> campo <span class="tok-palavra-chave">in</span> CAMPOS_OPCIONAIS_DO_LOG:
+<span class="numero-linha">95</span>            <span class="tok-palavra-chave">if</span> <span class="tok-builtin">hasattr</span>(record, campo):
+<span class="numero-linha">96</span>                linha[campo] = <span class="tok-builtin">getattr</span>(record, campo)
+<span class="numero-linha">97</span>        <span class="tok-palavra-chave">return</span> json.dumps(linha, ensure_ascii=<span class="tok-palavra-chave">False</span>)</code></pre></div>
+<p class="legenda"><strong>Código 5.</strong> Cada registro vira uma linha JSON com campos fixos; os campos da requisição entram por extra.</p>
+<p>Exemplo real (execução oficial E2): a mesma requisição nos dois logs.</p>
+<pre class="linha-de-log">{&quot;timestamp&quot;: &quot;2026-11-23T20:39:18.370+00:00&quot;, &quot;level&quot;: &quot;WARNING&quot;, &quot;service&quot;: &quot;cliente_experimento&quot;, &quot;repeticao&quot;: 1, &quot;fase&quot;: &quot;medicao&quot;, &quot;correlation_id&quot;: &quot;exp-4b98419bec10494dbbaa407b2567aaac&quot;, &quot;operation&quot;: &quot;GET /produtos&quot;, &quot;status&quot;: 503, &quot;outcome&quot;: &quot;application_error&quot;, &quot;duration_ms&quot;: 25.65}
+{&quot;timestamp&quot;: &quot;2026-11-23T20:39:18.369+00:00&quot;, &quot;level&quot;: &quot;INFO&quot;, &quot;service&quot;: &quot;servico_da_loja&quot;, &quot;instance&quot;: &quot;servico-experimento&quot;, &quot;message&quot;: &quot;requisicao atendida&quot;, &quot;correlation_id&quot;: &quot;exp-4b98419bec10494dbbaa407b2567aaac&quot;, &quot;operation&quot;: &quot;GET /produtos&quot;, &quot;method&quot;: &quot;GET&quot;, &quot;path&quot;: &quot;/produtos&quot;, &quot;status&quot;: 503, &quot;duration_ms&quot;: 0.0, &quot;outcome&quot;: &quot;server_error&quot;, &quot;injected_fault&quot;: true}</pre>
+<p class="legenda"><strong>Log 1.</strong> Cliente (acima) e serviço (abaixo) registram o mesmo <code>correlation_id</code>; o serviço informa que o 503 foi uma falha injetada.</p>
+
+<h2 id="s3-5">3.5 Falha controlada</h2>
+<p>A falha é configurada por variáveis de ambiente lidas na inicialização. Ela atinge só as rotas <code>/produtos</code> e <code>/pedidos</code>; as rotas técnicas usadas para verificar se o serviço está de pé não são afetadas. A configuração ativa é registrada na primeira linha de log.</p>
+<table>
+<thead><tr><th>Variável</th><th>Efeito</th><th>Padrão</th></tr></thead>
+<tbody>
+<tr><td><code>LOJA_ATRASO_INJETADO_MS</code></td><td>Atraso antes de cada resposta</td><td>0</td></tr>
+<tr><td><code>LOJA_PERCENTUAL_DE_FALHAS_503</code></td><td>Percentual de respostas 503 sorteadas</td><td>0</td></tr>
+<tr><td><code>LOJA_SEMENTE_DA_INJECAO</code></td><td>Semente do sorteio, para repetir a mesma sequência</td><td>aleatória</td></tr>
+<tr><td><code>LOJA_CAMINHO_DO_BANCO</code></td><td>Arquivo SQLite (banco temporário nos testes e experimentos)</td><td><code>servico_da_loja/loja.db</code></td></tr>
+</tbody>
+</table>
+<div class="bloco-codigo"><div class="barra"><span>servico_da_loja/aplicacao_web.py</span><span>linhas 219 a 239</span></div><pre><code><span class="numero-linha">219</span><span class="tok-palavra-chave">async</span> <span class="tok-palavra-chave">def</span> <span class="tok-funcao">_aplicarFalhaInjetadaOuSeguirParaRota</span>(
+<span class="numero-linha">220</span>    request: Request,
+<span class="numero-linha">221</span>    call_next: Callable[[Request], Awaitable[Response]],
+<span class="numero-linha">222</span>    correlation_id: <span class="tok-builtin">str</span>,
+<span class="numero-linha">223</span>) -&gt; <span class="tok-builtin">tuple</span>[Response, <span class="tok-builtin">bool</span>]:
+<span class="numero-linha">224</span>    <span class="tok-string">&quot;&quot;&quot;Aplica o atraso e o sorteio de 503 configurados; devolve (resposta, houve_503).&quot;&quot;&quot;</span>
+<span class="numero-linha">225</span>    <span class="tok-palavra-chave">if</span> ATRASO_INJETADO_EM_MILISSEGUNDOS &gt; <span class="tok-numero">0</span>:
+<span class="numero-linha">226</span>        <span class="tok-comentario"># asyncio.sleep nao bloqueia o laco de eventos: outras requisicoes</span>
+<span class="numero-linha">227</span>        <span class="tok-comentario"># continuam sendo atendidas durante o atraso.</span>
+<span class="numero-linha">228</span>        <span class="tok-palavra-chave">await</span> asyncio.sleep(ATRASO_INJETADO_EM_MILISSEGUNDOS / <span class="tok-numero">1000</span>)
+<span class="numero-linha">229</span>        registrarEventoNoRastreamentoDaRequisicaoCorrente(
+<span class="numero-linha">230</span>            <span class="tok-string">&quot;INJECTED_DELAY&quot;</span>, atraso_ms=ATRASO_INJETADO_EM_MILISSEGUNDOS
+<span class="numero-linha">231</span>        )
+<span class="numero-linha">232</span>    <span class="tok-palavra-chave">if</span> _sortearSeRequisicaoRecebeFalha503():
+<span class="numero-linha">233</span>        registrarEventoNoRastreamentoDaRequisicaoCorrente(<span class="tok-string">&quot;INJECTED_FAILURE&quot;</span>, status=<span class="tok-numero">503</span>)
+<span class="numero-linha">234</span>        resposta_503 = JSONResponse(
+<span class="numero-linha">235</span>            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+<span class="numero-linha">236</span>            content={<span class="tok-string">&quot;error&quot;</span>: <span class="tok-string">&quot;Servico indisponivel (falha injetada)&quot;</span>, <span class="tok-string">&quot;correlation_id&quot;</span>: correlation_id},
+<span class="numero-linha">237</span>        )
+<span class="numero-linha">238</span>        <span class="tok-palavra-chave">return</span> resposta_503, <span class="tok-palavra-chave">True</span>
+<span class="numero-linha">239</span>    <span class="tok-palavra-chave">return</span> <span class="tok-palavra-chave">await</span> call_next(request), <span class="tok-palavra-chave">False</span></code></pre></div>
+<p class="legenda"><strong>Código 6.</strong> Atraso e 503 injetados antes da rota; asyncio.sleep não bloqueia as demais requisições.</p>
+
+<h2 id="s3-6">3.6 Proteções verificadas</h2>
+<p><strong>Codificação explícita.</strong> O esquema SQL contém o produto de exemplo "Teclado mecânico". Sem codificação explícita, a leitura usaria a codificação padrão do sistema; no Windows (cp1252) o acento seria gravado como "mecÃ¢nico". A leitura em UTF-8 foi verificada em banco temporário.</p>
+<div class="bloco-codigo"><div class="barra"><span>servico_da_loja/camada_de_persistencia.py</span><span>linhas 99 a 106</span></div><pre><code><span class="numero-linha">99</span><span class="tok-palavra-chave">def</span> <span class="tok-funcao">criarEsquemaEDadosDeExemploSeAusentes</span>() -&gt; <span class="tok-palavra-chave">None</span>:
+<span class="numero-linha">100</span>    <span class="tok-string">&quot;&quot;&quot;Cria tabelas e produtos de exemplo que ainda nao existirem.</span>
+<span class="numero-linha">101</span><span class="tok-string"></span>
+<span class="numero-linha">102</span><span class="tok-string">    Pode ser chamada a cada inicializacao: o script SQL e idempotente e nao</span>
+<span class="numero-linha">103</span><span class="tok-string">    duplica dados quando o banco ja existe.</span>
+<span class="numero-linha">104</span><span class="tok-string">    &quot;&quot;&quot;</span>
+<span class="numero-linha">105</span>    <span class="tok-palavra-chave">with</span> abrirConexaoQueFechaAoFimDaRequisicao() <span class="tok-palavra-chave">as</span> conn:
+<span class="numero-linha">106</span>        conn.executescript(SCHEMA_PATH.read_text(encoding=<span class="tok-string">&quot;utf-8&quot;</span>))</code></pre></div>
+<p class="legenda"><strong>Código 7.</strong> O esquema é lido com codificação explícita, independente da codificação padrão do sistema.</p>
+<p><strong>Dados de usuário como texto.</strong> O nome do produto é informado por usuários. A tela insere esse valor com <code>textContent</code>, nunca como HTML. Verificação: um produto cadastrado com o nome <code>&lt;img src=x onerror="window.__injetado=1"&gt;</code> foi exibido literalmente na tabela do pedido, sem criar imagem nem executar código.</p>
+<div class="bloco-codigo"><div class="barra"><span>servico_da_loja/static/index.html</span><span>linhas 257 a 265</span></div><pre><code><span class="numero-linha">257</span><span class="tok-comentario">// Celulas preenchidas por textContent: o nome do produto e dado informado</span>
+<span class="numero-linha">258</span><span class="tok-comentario">// por usuarios e nunca e interpretado como HTML.</span>
+<span class="numero-linha">259</span><span class="tok-palavra-chave">function</span> adicionarLinhaDeItemNaTabela(corpo, item) {
+<span class="numero-linha">260</span>  <span class="tok-palavra-chave">const</span> tr = document.createElement(<span class="tok-string">&quot;tr&quot;</span>);
+<span class="numero-linha">261</span>  <span class="tok-palavra-chave">for</span> (<span class="tok-palavra-chave">const</span> valor <span class="tok-palavra-chave">of</span> [item.produto_nome, item.quantidade, item.subtotal]) {
+<span class="numero-linha">262</span>    tr.appendChild(criarElementoComClasseETexto(<span class="tok-string">&quot;td&quot;</span>, <span class="tok-palavra-chave">null</span>, String(valor)));
+<span class="numero-linha">263</span>  }
+<span class="numero-linha">264</span>  corpo.appendChild(tr);
+<span class="numero-linha">265</span>}</code></pre></div>
+<p class="legenda"><strong>Código 8.</strong> Dados digitados por usuários são inseridos como texto, nunca como HTML.</p>
+
+<h2 id="s3-7">3.7 Tempo limite em todas as chamadas remotas</h2>
+<table>
+<thead><tr><th>Chamador</th><th>Tempo limite</th><th>Comportamento ao expirar</th></tr></thead>
+<tbody>
+<tr><td>Script de experimento</td><td>1,0 s (parâmetro <code>--tempo-limite</code>)</td><td>Registra <code>transport_error</code> com o tipo e continua</td></tr>
+<tr><td>Teste funcional</td><td>3 s (5 s nas chamadas concorrentes; 0,5 s no teste de tempo limite curto)</td><td>Falha do teste com o <code>correlation_id</code> na mensagem</td></tr>
+<tr><td>Tela de operação</td><td>5 s (<code>AbortController</code>)</td><td>Exibe "sem resposta" com o motivo, sem travar a tela</td></tr>
+<tr><td>Conexão SQLite</td><td>10 s de espera pelo lock</td><td>Erro de banco, tratado como 500 com correlação</td></tr>
+</tbody>
+</table>
+<div class="bloco-codigo"><div class="barra"><span>servico_da_loja/static/index.html</span><span>linhas 135 a 145</span></div><pre><code><span class="numero-linha">135</span><span class="tok-comentario">// fetch com tempo limite: AbortController cancela a chamada que passar de</span>
+<span class="numero-linha">136</span><span class="tok-comentario">// TEMPO_LIMITE_DAS_CHAMADAS_EM_MILISSEGUNDOS.</span>
+<span class="numero-linha">137</span><span class="tok-palavra-chave">async</span> <span class="tok-palavra-chave">function</span> buscarComTempoLimite(url, opcoes) {
+<span class="numero-linha">138</span>  <span class="tok-palavra-chave">const</span> controlador = <span class="tok-palavra-chave">new</span> AbortController();
+<span class="numero-linha">139</span>  <span class="tok-palavra-chave">const</span> temporizador = setTimeout(() =&gt; controlador.abort(), TEMPO_LIMITE_DAS_CHAMADAS_EM_MILISSEGUNDOS);
+<span class="numero-linha">140</span>  <span class="tok-palavra-chave">try</span> {
+<span class="numero-linha">141</span>    <span class="tok-palavra-chave">return</span> <span class="tok-palavra-chave">await</span> fetch(url, { ...opcoes, signal: controlador.signal });
+<span class="numero-linha">142</span>  } <span class="tok-palavra-chave">finally</span> {
+<span class="numero-linha">143</span>    clearTimeout(temporizador);
+<span class="numero-linha">144</span>  }
+<span class="numero-linha">145</span>}</code></pre></div>
+<p class="legenda"><strong>Código 9.</strong> Toda chamada da tela é abortada após o tempo limite e exibida como falha de transporte.</p>
+
+<h2 id="s3-8">3.8 Instrumento de medição</h2>
+<p>Cada repetição sobe um serviço novo, com banco temporário e as variáveis do cenário, envia as requisições de aquecimento (descartadas) e mede <code>GET /produtos</code> uma requisição por vez. Cada requisição leva identificador próprio e é classificada do ponto de vista do cliente.</p>
+<div class="bloco-codigo"><div class="barra"><span>experimentos/experimento_de_latencia_e_falhas.py</span><span>linhas 300 a 322</span></div><pre><code><span class="numero-linha">300</span>    correlation_id = <span class="tok-string">f&quot;exp-{uuid.uuid4().hex}&quot;</span>
+<span class="numero-linha">301</span>    inicio = time.perf_counter()
+<span class="numero-linha">302</span>    medicao = {<span class="tok-string">&quot;correlation_id&quot;</span>: correlation_id, <span class="tok-string">&quot;operation&quot;</span>: <span class="tok-string">f&quot;GET {ROTA_MEDIDA}&quot;</span>}
+<span class="numero-linha">303</span>    <span class="tok-palavra-chave">try</span>:
+<span class="numero-linha">304</span>        resposta = cliente_http.get(
+<span class="numero-linha">305</span>            <span class="tok-string">f&quot;{endereco_base}{ROTA_MEDIDA}&quot;</span>,
+<span class="numero-linha">306</span>            headers={<span class="tok-string">&quot;X-Correlation-ID&quot;</span>: correlation_id},
+<span class="numero-linha">307</span>            timeout=tempo_limite_em_segundos,
+<span class="numero-linha">308</span>        )
+<span class="numero-linha">309</span>        medicao[<span class="tok-string">&quot;status&quot;</span>] = resposta.status_code
+<span class="numero-linha">310</span>        medicao[<span class="tok-string">&quot;outcome&quot;</span>] = <span class="tok-string">&quot;success&quot;</span> <span class="tok-palavra-chave">if</span> resposta.ok <span class="tok-palavra-chave">else</span> <span class="tok-string">&quot;application_error&quot;</span>
+<span class="numero-linha">311</span>    <span class="tok-comentario"># ConnectTimeout herda de ConnectionError e de Timeout: precisa vir antes.</span>
+<span class="numero-linha">312</span>    <span class="tok-palavra-chave">except</span> requests.exceptions.ConnectTimeout:
+<span class="numero-linha">313</span>        medicao[<span class="tok-string">&quot;outcome&quot;</span>] = <span class="tok-string">&quot;transport_error&quot;</span>
+<span class="numero-linha">314</span>        medicao[<span class="tok-string">&quot;error&quot;</span>] = <span class="tok-string">&quot;connect_timeout&quot;</span>
+<span class="numero-linha">315</span>    <span class="tok-palavra-chave">except</span> requests.exceptions.ReadTimeout:
+<span class="numero-linha">316</span>        medicao[<span class="tok-string">&quot;outcome&quot;</span>] = <span class="tok-string">&quot;transport_error&quot;</span>
+<span class="numero-linha">317</span>        medicao[<span class="tok-string">&quot;error&quot;</span>] = <span class="tok-string">&quot;read_timeout&quot;</span>
+<span class="numero-linha">318</span>    <span class="tok-palavra-chave">except</span> requests.exceptions.<span class="tok-builtin">ConnectionError</span>:
+<span class="numero-linha">319</span>        medicao[<span class="tok-string">&quot;outcome&quot;</span>] = <span class="tok-string">&quot;transport_error&quot;</span>
+<span class="numero-linha">320</span>        medicao[<span class="tok-string">&quot;error&quot;</span>] = <span class="tok-string">&quot;connection_error&quot;</span>
+<span class="numero-linha">321</span>    medicao[<span class="tok-string">&quot;duration_ms&quot;</span>] = (time.perf_counter() - inicio) * <span class="tok-numero">1000</span>
+<span class="numero-linha">322</span>    <span class="tok-palavra-chave">return</span> medicao</code></pre></div>
+<p class="legenda"><strong>Código 10.</strong> A ordem dos except importa: ConnectTimeout é subclasse de ConnectionError e de Timeout.</p>
+<p>A distinção entre <code>connect_timeout</code> e <code>read_timeout</code> responde uma pergunta que o código HTTP não responde: o serviço chegou a receber a requisição? No primeiro caso, não; no segundo, a requisição foi enviada e o serviço pode tê-la executado.</p>
+<div class="bloco-codigo"><div class="barra"><span>experimentos/experimento_de_latencia_e_falhas.py</span><span>linhas 161 a 171</span></div><pre><code><span class="numero-linha">161</span><span class="tok-palavra-chave">def</span> <span class="tok-funcao">calcularPercentilPorPostoMaisProximo</span>(amostras_ordenadas: <span class="tok-builtin">list</span>[<span class="tok-builtin">float</span>], percentil: <span class="tok-builtin">float</span>) -&gt; <span class="tok-builtin">float</span> | <span class="tok-palavra-chave">None</span>:
+<span class="numero-linha">162</span>    <span class="tok-string">&quot;&quot;&quot;Percentil pelo metodo do posto mais proximo (nearest-rank).</span>
+<span class="numero-linha">163</span><span class="tok-string"></span>
+<span class="numero-linha">164</span><span class="tok-string">    Devolve o menor valor tal que pelo menos `percentil`% das amostras sao</span>
+<span class="numero-linha">165</span><span class="tok-string">    menores ou iguais a ele: posicao = teto(percentil/100 * n), contada a</span>
+<span class="numero-linha">166</span><span class="tok-string">    partir de 1. Sempre devolve um valor realmente observado.</span>
+<span class="numero-linha">167</span><span class="tok-string">    &quot;&quot;&quot;</span>
+<span class="numero-linha">168</span>    <span class="tok-palavra-chave">if</span> <span class="tok-palavra-chave">not</span> amostras_ordenadas:
+<span class="numero-linha">169</span>        <span class="tok-palavra-chave">return</span> <span class="tok-palavra-chave">None</span>
+<span class="numero-linha">170</span>    posicao = <span class="tok-builtin">max</span>(<span class="tok-numero">1</span>, math.ceil(percentil / <span class="tok-numero">100</span> * <span class="tok-builtin">len</span>(amostras_ordenadas)))
+<span class="numero-linha">171</span>    <span class="tok-palavra-chave">return</span> amostras_ordenadas[posicao - <span class="tok-numero">1</span>]</code></pre></div>
+<p class="legenda"><strong>Código 11.</strong> Percentil pelo posto mais próximo: sempre devolve um valor observado.</p>
+<p>O critério de parada interrompe uma repetição quando o serviço se torna inalcançável. Continuar só acumularia esperas sem informação nova. O evento é gravado no log do cliente.</p>
+<div class="bloco-codigo"><div class="barra"><span>experimentos/experimento_de_latencia_e_falhas.py</span><span>linhas 351 a 355</span></div><pre><code><span class="numero-linha">351</span><span class="tok-palavra-chave">def</span> <span class="tok-funcao">_criterioDeParadaFoiAtingido</span>(medicoes: <span class="tok-builtin">list</span>[<span class="tok-builtin">dict</span>], limite_de_erros_consecutivos: <span class="tok-builtin">int</span> | <span class="tok-palavra-chave">None</span>) -&gt; <span class="tok-builtin">bool</span>:
+<span class="numero-linha">352</span>    <span class="tok-palavra-chave">if</span> <span class="tok-palavra-chave">not</span> limite_de_erros_consecutivos <span class="tok-palavra-chave">or</span> <span class="tok-builtin">len</span>(medicoes) &lt; limite_de_erros_consecutivos:
+<span class="numero-linha">353</span>        <span class="tok-palavra-chave">return</span> <span class="tok-palavra-chave">False</span>
+<span class="numero-linha">354</span>    ultimas = medicoes[-limite_de_erros_consecutivos:]
+<span class="numero-linha">355</span>    <span class="tok-palavra-chave">return</span> <span class="tok-builtin">all</span>(m[<span class="tok-string">&quot;outcome&quot;</span>] == <span class="tok-string">&quot;transport_error&quot;</span> <span class="tok-palavra-chave">for</span> m <span class="tok-palavra-chave">in</span> ultimas)</code></pre></div>
+<p class="legenda"><strong>Código 12.</strong> Critério de parada: N erros de transporte consecutivos interrompem a repetição.</p>
+<p>Ao final, o script cruza <code>cliente.log</code> e <code>servico.log</code> pelo identificador. Para cada tipo de resultado visto pelo cliente, registra quantas requisições chegaram ao serviço, com qual status, se o erro foi injetado e a mediana da duração nos dois lados.</p>
+
+<!-- ===================================================================== 4 -->
+<h1 id="s4">4. Ambiente e versões</h1>
+<table>
+<thead><tr><th>Item</th><th>Versão</th></tr></thead>
+<tbody>
+<tr><td>Sistema operacional</td><td>Windows 11, build 26300 (reportado pelo Python como <code>Windows-10-10.0.26300-SP0</code>)</td></tr>
+<tr><td>Python</td><td>3.11.9</td></tr>
+<tr><td>FastAPI</td><td>0.115.0</td></tr>
+<tr><td>Starlette</td><td>0.38.6</td></tr>
+<tr><td>Pydantic</td><td>2.14.4</td></tr>
+<tr><td>Uvicorn</td><td>0.54.0</td></tr>
+<tr><td>Requests</td><td>2.32.3</td></tr>
+<tr><td>SQLite</td><td>Biblioteca padrão do Python (<code>sqlite3</code>)</td></tr>
+<tr><td>Navegador (tela e PDF)</td><td>Microsoft Edge 158</td></tr>
+</tbody>
+</table>
+<p>Todos os processos executaram na mesma máquina, pela interface de loopback. Horários em UTC; datas no formato AAAA-MM-DD. Docker Compose (Apêndice A.2) não foi usado: a queda do serviço é provocada encerrando o processo, o que dispensa contêineres.</p>
+
+<!-- ===================================================================== 5 -->
+<h1 id="s5">5. Procedimento de execução</h1>
+
+<h2 id="s5-1">5.1 Preparação (uma vez)</h2>
+<pre class="diagrama">python -m venv .venv
+.venv\Scripts\Activate.ps1          # Windows (PowerShell)
+# source .venv/bin/activate         # Linux/macOS
+pip install -r requirements.txt</pre>
+
+<h2 id="s5-2">5.2 Execução</h2>
+<table>
+<thead><tr><th>Ação</th><th>Comando</th></tr></thead>
+<tbody>
+<tr><td>Subir o serviço</td><td><code>python -m uvicorn servico_da_loja.aplicacao_web:app --host 127.0.0.1 --port 8000</code></td></tr>
+<tr><td>Verificar a correlação manualmente</td><td><code>curl -i http://127.0.0.1:8000/produtos -H "X-Correlation-ID: teste-manual-001"</code></td></tr>
+<tr><td>Teste funcional (sobe o próprio serviço)</td><td><code>python -m unittest -v</code></td></tr>
+<tr><td>Tela de operação</td><td><code>http://127.0.0.1:8000/</code></td></tr>
+</tbody>
+</table>
+
+<h2 id="s5-3">5.3 Comandos dos experimentos</h2>
+<p>Cada execução grava em <code>experimentos/&lt;cenário&gt;/&lt;início em UTC&gt;/</code> e nunca sobrescreve execuções anteriores.</p>
+<table>
+<thead><tr><th>Experimento</th><th>Comando</th><th>Amostras × repetições (aquecimento)</th></tr></thead>
+<tbody>
+<tr><td>E1</td><td><code>python experimentos/experimento_de_latencia_e_falhas.py --cenario A-nominal</code></td><td>200 × 3 (20)</td></tr>
+<tr><td>E1, keep-alive</td><td><code>... --cenario A-nominal --reaproveitar-conexao</code></td><td>200 × 3 (20)</td></tr>
+<tr><td>E2</td><td><code>... --cenario B-falha-de-aplicacao-503</code></td><td>200 × 3 (20)</td></tr>
+<tr><td>E3</td><td><code>... --cenario C-atraso-abaixo-do-tempo-limite</code></td><td>100 × 3 (5)</td></tr>
+<tr><td>E4</td><td><code>... --cenario D-atraso-acima-do-tempo-limite</code></td><td>30 × 3 (2)</td></tr>
+<tr><td>E5</td><td><code>... --cenario E-queda-do-servico</code></td><td>até 200 × 3 (20), queda após 100</td></tr>
+</tbody>
+</table>
+<p>Em todos os cenários: cliente único e sequencial, tempo limite de 1,0 s por requisição, conexão TCP nova a cada requisição (exceto na variante keep-alive), serviço reiniciado com banco novo a cada repetição e 2 s de espera antes de encerrar o serviço, para que requisições abandonadas pelo cliente cheguem ao log.</p>
+
+<!-- ===================================================================== 6 -->
+<h1 id="s6">6. Resultados: tabelas, logs e medidas</h1>
+<p>A execução oficial ocorreu em 2026-11-23, de 20:38:48 a 20:44:23 (UTC), sem alterações no código entre os cenários. Latências em milissegundos; percentis e média consideram apenas respostas de sucesso. Um asterisco marca repetição interrompida pelo critério de parada.</p>
+<table>
+<thead><tr><th>Experimento</th><th>Pasta da execução oficial</th></tr></thead>
+<tbody>
+<tr><td>E1</td><td><code>experimentos/A-nominal/2026-11-23T203848Z/</code></td></tr>
+<tr><td>E1, keep-alive</td><td><code>experimentos/A-nominal-conexao-reaproveitada/2026-11-23T203904Z/</code></td></tr>
+<tr><td>E2</td><td><code>experimentos/B-falha-de-aplicacao-503/2026-11-23T203916Z/</code></td></tr>
+<tr><td>E3</td><td><code>experimentos/C-atraso-abaixo-do-tempo-limite/2026-11-23T203931Z/</code></td></tr>
+<tr><td>E4</td><td><code>experimentos/D-atraso-acima-do-tempo-limite/2026-11-23T204123Z/</code></td></tr>
+<tr><td>E5</td><td><code>experimentos/E-queda-do-servico/2026-11-23T204313Z/</code></td></tr>
+</tbody>
+</table>
+
+<h2 id="s6-1">6.1 Teste funcional</h2>
+<p class="condicao">Serviço iniciado pelo próprio teste, em porta livre e banco temporário; condição nominal.</p>
+<table>
+<thead><tr><th>Fato</th><th>Evidência</th></tr></thead>
+<tbody>
+<tr><td>29 de 29 testes aprovados em cerca de 6 s</td><td><code>python -m unittest -v</code></td></tr>
+<tr><td>Cobertura: todas as rotas de produtos e pedidos são chamadas ao menos uma vez; sucesso (200/201/204), conflito (409), inexistente (404) e validação (422); idempotência sequencial e concorrente; soma de itens; todas as transições de pedido e seus efeitos no estoque; confirmações simultâneas; tempo limite curto e suficiente; correlação válida e inválida</td><td><code>testes_funcionais/test_fluxo_da_loja.py</code></td></tr>
+<tr><td>O teste detecta defeitos: em cópia temporária, seis defeitos foram introduzidos um de cada vez; cada um foi detectado pelo teste correspondente</td><td>Tabela abaixo (procedimento de desenvolvimento; não há arquivo de evidência)</td></tr>
+</tbody>
+</table>
+<table>
+<thead><tr><th>Defeito introduzido</th><th>Testes que falharam</th></tr></thead>
+<tbody>
+<tr><td><code>BEGIN IMMEDIATE</code> trocado por <code>BEGIN DEFERRED</code></td><td>Os dois testes de concorrência</td></tr>
+<tr><td>Correlation_id do cliente ignorado</td><td><code>testCorrelationIdEnviadoPeloClienteVoltaNaResposta</code></td></tr>
+<tr><td>Item repetido sem somar quantidade</td><td><code>testAdicionarMesmoProdutoDuasVezesSomaQuantidadeDoItem</code></td></tr>
+<tr><td>Substituição de produto respondida sem gravar no banco</td><td>Os dois testes de substituição que dependem da gravação</td></tr>
+<tr><td>Pedido sem itens aceito na confirmação</td><td><code>testConfirmarPedidoSemItensDevolveConflito409</code></td></tr>
+<tr><td>Listagem de pedidos com valor total zerado</td><td><code>testListarPedidosIncluiPedidoCriadoComValorTotal</code></td></tr>
+</tbody>
+</table>
+
+<h2 id="s6-2" class="experimento">E1. Cenário nominal</h2>
+<p class="condicao">Sem falha injetada; conexão TCP nova a cada requisição.</p>
+<table class="medidas"><thead><tr><th>Repetição</th><th>Req.</th><th>Sucesso</th><th>Erro apl.</th><th>Erro transp.</th><th>Média</th><th>p50</th><th>p95</th><th>p99</th><th>Máx.</th><th>req/s</th></tr></thead><tbody><tr><td>1</td><td>200</td><td>200</td><td>0</td><td>0</td><td>7,47</td><td>4,96</td><td>23,15</td><td>27,44</td><td>28,53</td><td>130,5</td></tr><tr><td>2</td><td>200</td><td>200</td><td>0</td><td>0</td><td>7,55</td><td>3,61</td><td>26,38</td><td>28,74</td><td>36,93</td><td>129,8</td></tr><tr><td>3</td><td>200</td><td>200</td><td>0</td><td>0</td><td>6,75</td><td>3,88</td><td>22,99</td><td>28,00</td><td>32,97</td><td>144,6</td></tr><tr><td><strong>Agregado</strong></td><td>600</td><td>600</td><td>0</td><td>0</td><td>7,26</td><td>3,89</td><td>24,85</td><td>28,08</td><td>36,93</td><td>134,7</td></tr></tbody></table>
+<table class="medidas"><thead><tr><th>Resultado no cliente</th><th>Req.</th><th>No log do serviço</th><th>Status no serviço</th><th>Falha injetada</th><th>Mediana cliente (ms)</th><th>Mediana serviço (ms)</th></tr></thead><tbody><tr><td><code>success</code></td><td>600</td><td>600</td><td>200: 600</td><td>0</td><td>3,89</td><td>1,40</td></tr></tbody></table>
+<ul>
+<li>Nenhum erro em 600 requisições; p99 de 28,08 ms, abaixo de 50 ms.</li>
+<li>A média (7,26 ms) é 1,9 vez o p50 (3,89 ms); o p95 salta para 24,85 ms.</li>
+<li>105 das 600 requisições (17,5%) levaram mais de 15 ms no cliente. Dentro do serviço, essas mesmas requisições gastaram em média 2,38 ms, contra 1,59 ms das rápidas.</li>
+</ul>
+<p class="veredito">Hipótese parcialmente confirmada: sem erros e p99 abaixo de 50 ms; a cauda não é curta.</p>
+
+<h2 id="s6-3" class="experimento">E1. Variante com conexão reaproveitada</h2>
+<p class="condicao">Mesmo serviço e carga; o cliente usa uma única conexão keep-alive.</p>
+<table class="medidas"><thead><tr><th>Repetição</th><th>Req.</th><th>Sucesso</th><th>Erro apl.</th><th>Erro transp.</th><th>Média</th><th>p50</th><th>p95</th><th>p99</th><th>Máx.</th><th>req/s</th></tr></thead><tbody><tr><td>1</td><td>200</td><td>200</td><td>0</td><td>0</td><td>3,12</td><td>2,76</td><td>4,12</td><td>8,09</td><td>22,92</td><td>314,4</td></tr><tr><td>2</td><td>200</td><td>200</td><td>0</td><td>0</td><td>2,97</td><td>2,80</td><td>3,55</td><td>3,87</td><td>15,66</td><td>330,7</td></tr><tr><td>3</td><td>200</td><td>200</td><td>0</td><td>0</td><td>2,89</td><td>2,74</td><td>3,54</td><td>3,75</td><td>14,86</td><td>339,1</td></tr><tr><td><strong>Agregado</strong></td><td>600</td><td>600</td><td>0</td><td>0</td><td>2,99</td><td>2,76</td><td>3,81</td><td>4,67</td><td>22,92</td><td>327,7</td></tr></tbody></table>
+<table class="medidas"><thead><tr><th>Resultado no cliente</th><th>Req.</th><th>No log do serviço</th><th>Status no serviço</th><th>Falha injetada</th><th>Mediana cliente (ms)</th><th>Mediana serviço (ms)</th></tr></thead><tbody><tr><td><code>success</code></td><td>600</td><td>600</td><td>200: 600</td><td>0</td><td>2,76</td><td>1,20</td></tr></tbody></table>
+<ul>
+<li>A média cai para 2,99 ms e fica próxima do p50 (2,76 ms); o p99 cai de 28,08 para 4,67 ms.</li>
+<li>Só 3 das 600 requisições passaram de 15 ms; o throughput sobe de 134,7 para 327,7 req/s.</li>
+</ul>
+<p class="veredito">A cauda de E1 desaparece quando a conexão é reaproveitada.</p>
+
+<h2 id="s6-4" class="experimento">E2. Falha de aplicação (503)</h2>
+<p class="condicao"><code>LOJA_PERCENTUAL_DE_FALHAS_503=20</code>, <code>LOJA_SEMENTE_DA_INJECAO=42</code>.</p>
+<table class="medidas"><thead><tr><th>Repetição</th><th>Req.</th><th>Sucesso</th><th>Erro apl.</th><th>Erro transp.</th><th>Média</th><th>p50</th><th>p95</th><th>p99</th><th>Máx.</th><th>req/s</th></tr></thead><tbody><tr><td>1</td><td>200</td><td>168</td><td>32</td><td>0</td><td>7,77</td><td>3,58</td><td>25,98</td><td>28,94</td><td>29,01</td><td>110,2</td></tr><tr><td>2</td><td>200</td><td>168</td><td>32</td><td>0</td><td>6,47</td><td>4,63</td><td>14,37</td><td>26,25</td><td>52,17</td><td>129,2</td></tr><tr><td>3</td><td>200</td><td>168</td><td>32</td><td>0</td><td>6,27</td><td>4,56</td><td>14,90</td><td>29,83</td><td>40,33</td><td>132,2</td></tr><tr><td><strong>Agregado</strong></td><td>600</td><td>504</td><td>96</td><td>0</td><td>6,84</td><td>4,28</td><td>21,67</td><td>28,81</td><td>52,17</td><td>123,1</td></tr></tbody></table>
+<table class="medidas"><thead><tr><th>Resultado no cliente</th><th>Req.</th><th>No log do serviço</th><th>Status no serviço</th><th>Falha injetada</th><th>Mediana cliente (ms)</th><th>Mediana serviço (ms)</th></tr></thead><tbody><tr><td><code>success</code></td><td>504</td><td>504</td><td>200: 504</td><td>0</td><td>4,30</td><td>1,50</td></tr><tr><td><code>application_error:503</code></td><td>96</td><td>96</td><td>503: 96</td><td>96</td><td>2,66</td><td>0,00</td></tr></tbody></table>
+<ul>
+<li>96 de 600 respostas foram 503 (16%), dentro da faixa prevista; nenhum erro de transporte.</li>
+<li>Os 96 aparecem no log do serviço com o mesmo identificador e <code>injected_fault = true</code> (Log 1, seção 3.4).</li>
+<li>O p50 dos sucessos (4,28 ms) fica na mesma ordem de E1 (3,89 ms).</li>
+<li>Cada repetição teve exatamente 32 respostas 503: a semente reinicia com o serviço (seção 8.2).</li>
+</ul>
+<p class="veredito">Hipótese confirmada.</p>
+
+<h2 id="s6-5" class="experimento">E3. Atraso abaixo do tempo limite</h2>
+<p class="condicao"><code>LOJA_ATRASO_INJETADO_MS=300</code>; tempo limite do cliente de 1 s.</p>
+<table class="medidas"><thead><tr><th>Repetição</th><th>Req.</th><th>Sucesso</th><th>Erro apl.</th><th>Erro transp.</th><th>Média</th><th>p50</th><th>p95</th><th>p99</th><th>Máx.</th><th>req/s</th></tr></thead><tbody><tr><td>1</td><td>100</td><td>100</td><td>0</td><td>0</td><td>319,96</td><td>322,17</td><td>328,77</td><td>329,47</td><td>329,73</td><td>3,1</td></tr><tr><td>2</td><td>100</td><td>100</td><td>0</td><td>0</td><td>322,63</td><td>324,60</td><td>332,50</td><td>337,64</td><td>338,75</td><td>3,1</td></tr><tr><td>3</td><td>100</td><td>100</td><td>0</td><td>0</td><td>320,20</td><td>323,19</td><td>329,11</td><td>340,06</td><td>341,44</td><td>3,1</td></tr><tr><td><strong>Agregado</strong></td><td>300</td><td>300</td><td>0</td><td>0</td><td>320,93</td><td>323,57</td><td>329,95</td><td>337,64</td><td>341,44</td><td>3,1</td></tr></tbody></table>
+<table class="medidas"><thead><tr><th>Resultado no cliente</th><th>Req.</th><th>No log do serviço</th><th>Status no serviço</th><th>Falha injetada</th><th>Mediana cliente (ms)</th><th>Mediana serviço (ms)</th></tr></thead><tbody><tr><td><code>success</code></td><td>300</td><td>300</td><td>200: 300</td><td>0</td><td>323,59</td><td>316,65</td></tr></tbody></table>
+<ul>
+<li>300 de 300 requisições com sucesso: a taxa de erro não acusa a degradação.</li>
+<li>O p50 subiu para 323,57 ms, cerca de 20 ms acima da previsão (300 ms + 3,89 ms).</li>
+<li>O próprio serviço mediu 316,65 ms (mediana) para um atraso configurado de 300 ms: o excesso nasce no temporizador do sistema operacional, não na rede.</li>
+</ul>
+<p class="veredito">Hipótese confirmada, com desvio de cerca de 20 ms explicado na seção 8.1.</p>
+
+<h2 id="s6-6" class="experimento">E4. Atraso acima do tempo limite</h2>
+<p class="condicao"><code>LOJA_ATRASO_INJETADO_MS=1200</code>; tempo limite do cliente de 1 s.</p>
+<table class="medidas"><thead><tr><th>Repetição</th><th>Req.</th><th>Sucesso</th><th>Erro apl.</th><th>Erro transp.</th><th>Média</th><th>p50</th><th>p95</th><th>p99</th><th>Máx.</th><th>req/s</th></tr></thead><tbody><tr><td>1</td><td>30</td><td>0</td><td>0</td><td>30</td><td colspan="5">sem respostas de sucesso</td><td>0,0</td></tr><tr><td>2</td><td>30</td><td>0</td><td>0</td><td>30</td><td colspan="5">sem respostas de sucesso</td><td>0,0</td></tr><tr><td>3</td><td>30</td><td>0</td><td>0</td><td>30</td><td colspan="5">sem respostas de sucesso</td><td>0,0</td></tr><tr><td><strong>Agregado</strong></td><td>90</td><td>0</td><td>0</td><td>90</td><td colspan="5">sem respostas de sucesso</td><td>0,0</td></tr></tbody></table>
+<table class="medidas"><thead><tr><th>Resultado no cliente</th><th>Req.</th><th>No log do serviço</th><th>Status no serviço</th><th>Falha injetada</th><th>Mediana cliente (ms)</th><th>Mediana serviço (ms)</th></tr></thead><tbody><tr><td><code>transport_error:read_timeout</code></td><td>90</td><td>90</td><td>200: 90</td><td>0</td><td>1.010,43</td><td>1.210,25</td></tr></tbody></table>
+<ul>
+<li>90 de 90 requisições terminaram em <code>read_timeout</code> no cliente, por volta de 1.010 ms.</li>
+<li>As mesmas 90 foram concluídas no serviço com status 200, mediana de 1.210,25 ms.</li>
+</ul>
+<pre class="linha-de-log">{&quot;timestamp&quot;: &quot;2026-11-23T20:41:28.375+00:00&quot;, &quot;level&quot;: &quot;WARNING&quot;, &quot;service&quot;: &quot;cliente_experimento&quot;, &quot;repeticao&quot;: 1, &quot;fase&quot;: &quot;medicao&quot;, &quot;correlation_id&quot;: &quot;exp-347258c34d5646849110946cfb409e15&quot;, &quot;operation&quot;: &quot;GET /produtos&quot;, &quot;outcome&quot;: &quot;transport_error&quot;, &quot;error&quot;: &quot;read_timeout&quot;, &quot;duration_ms&quot;: 1009.61}
+{&quot;timestamp&quot;: &quot;2026-11-23T20:41:28.584+00:00&quot;, &quot;level&quot;: &quot;INFO&quot;, &quot;service&quot;: &quot;servico_da_loja&quot;, &quot;instance&quot;: &quot;servico-experimento&quot;, &quot;message&quot;: &quot;requisicao atendida&quot;, &quot;correlation_id&quot;: &quot;exp-347258c34d5646849110946cfb409e15&quot;, &quot;operation&quot;: &quot;listarTodosOsProdutos&quot;, &quot;method&quot;: &quot;GET&quot;, &quot;path&quot;: &quot;/produtos&quot;, &quot;status&quot;: 200, &quot;duration_ms&quot;: 1212.7, &quot;outcome&quot;: &quot;success&quot;}</pre>
+<p class="legenda"><strong>Log 2.</strong> O cliente desistiu às 20:41:28,375; o serviço registrou sucesso para o mesmo identificador 209 ms depois.</p>
+<p class="veredito">Hipótese confirmada.</p>
+
+<h2 id="s6-7" class="experimento">E5. Queda do serviço</h2>
+<p class="condicao">Processo do serviço encerrado após 100 requisições medidas, em cada repetição.</p>
+<table class="medidas"><thead><tr><th>Repetição</th><th>Req.</th><th>Sucesso</th><th>Erro apl.</th><th>Erro transp.</th><th>Média</th><th>p50</th><th>p95</th><th>p99</th><th>Máx.</th><th>req/s</th></tr></thead><tbody><tr><td>1 *</td><td>120</td><td>100</td><td>0</td><td>20</td><td>8,97</td><td>7,45</td><td>14,91</td><td>29,99</td><td>33,21</td><td>4,7</td></tr><tr><td>2 *</td><td>120</td><td>100</td><td>0</td><td>20</td><td>8,25</td><td>7,53</td><td>12,83</td><td>19,90</td><td>30,75</td><td>4,8</td></tr><tr><td>3 *</td><td>120</td><td>100</td><td>0</td><td>20</td><td>8,15</td><td>6,66</td><td>19,73</td><td>29,31</td><td>36,48</td><td>4,7</td></tr><tr><td><strong>Agregado</strong></td><td>360</td><td>300</td><td>0</td><td>60</td><td>8,46</td><td>7,23</td><td>13,89</td><td>29,99</td><td>36,48</td><td>4,7</td></tr></tbody></table>
+<table class="medidas"><thead><tr><th>Resultado no cliente</th><th>Req.</th><th>No log do serviço</th><th>Status no serviço</th><th>Falha injetada</th><th>Mediana cliente (ms)</th><th>Mediana serviço (ms)</th></tr></thead><tbody><tr><td><code>success</code></td><td>300</td><td>300</td><td>200: 300</td><td>0</td><td>7,23</td><td>2,00</td></tr><tr><td><code>transport_error:connect_timeout</code></td><td>60</td><td>0</td><td>—</td><td>0</td><td>1.010,41</td><td>—</td></tr></tbody></table>
+<ul>
+<li>300 sucessos antes da queda; depois dela, 60 erros de transporte, todos <code>connect_timeout</code> por volta de 1.010 ms.</li>
+<li>Nenhuma das 60 requisições aparece no log do serviço; nenhum <code>read_timeout</code> e nenhum erro de aplicação.</li>
+<li>O critério de parada interrompeu as três repetições após 20 erros consecutivos (120 requisições cada).</li>
+<li>No Windows, a conexão a uma porta local fechada não foi recusada de imediato: ela esgotou o tempo limite de conexão.</li>
+</ul>
+<pre class="linha-de-log">{&quot;timestamp&quot;: &quot;2026-11-23T20:43:16.739+00:00&quot;, &quot;level&quot;: &quot;WARNING&quot;, &quot;service&quot;: &quot;cliente_experimento&quot;, &quot;repeticao&quot;: 1, &quot;evento&quot;: &quot;servico_derrubado&quot;, &quot;apos_amostras&quot;: 100}
+{&quot;timestamp&quot;: &quot;2026-11-23T20:43:36.966+00:00&quot;, &quot;level&quot;: &quot;WARNING&quot;, &quot;service&quot;: &quot;cliente_experimento&quot;, &quot;repeticao&quot;: 1, &quot;evento&quot;: &quot;interrompida_pelo_criterio_de_parada&quot;, &quot;apos_amostras&quot;: 120}</pre>
+<p class="legenda"><strong>Log 3.</strong> Marcos da primeira repetição gravados no log do cliente: queda após 100 amostras e interrupção pelo critério de parada após 120.</p>
+<p class="veredito">Hipótese confirmada.</p>
+
+<!-- ===================================================================== 7 -->
+<h1 id="s7">7. Discussão</h1>
+
+<p><strong>A média esconde a cauda.</strong> Em E1, a média de 7,26 ms parece descrever um serviço uniforme. O p50 (3,89 ms) e o p95 (24,85 ms) mostram outra coisa: duas populações, uma rápida (cerca de 4,2 ms) e outra cerca de cinco vezes mais lenta (cerca de 21,5 ms). Um objetivo de serviço baseado só na média aprovaria uma experiência ruim para cerca de uma em cada seis requisições. Por isso as medidas são expressas em percentis.</p>
+
+<p><strong>A correlação mostra onde o tempo é gasto.</strong> Sem o identificador compartilhado, a cauda de E1 seria atribuída ao serviço. O cruzamento dos dois logs mostrou que as requisições lentas gastaram cerca de 2,4 ms dentro do serviço, contra cerca de 21,5 ms vistos pelo cliente. O tempo extra está fora da rota: no estabelecimento da conexão e no caminho até o processo. A variante keep-alive confirmou a causa: com a conexão reaproveitada, o p99 caiu de 28,08 para 4,67 ms e o throughput mais que dobrou. A decisão de projeto e o seu trade-off ficam explícitos: reaproveitar conexões reduz a latência, mas mantém recursos abertos no servidor e exige tratar conexões que caem no meio do uso.</p>
+
+<p><strong>Erro de aplicação e erro de transporte são fenômenos diferentes.</strong> Em E2, o serviço estava de pé e respondeu 503 em cerca de 2,7 ms: o cliente sabe que a operação não foi feita e pode decidir repetir. Em E4 e E5, nenhuma resposta chegou. Contar os dois como "erro" na mesma coluna esconderia essa diferença, que muda a ação correta do cliente.</p>
+
+<p><strong>Tempo limite é um detector de falha imperfeito.</strong> Em E4, o cliente classificou as 90 requisições como falha, mas o serviço concluiu todas. Para uma consulta isso é inofensivo. Para uma operação que altera estado, repetir após um <code>read_timeout</code> pode executar a operação duas vezes. É por isso que a abertura de pedido aceita <code>Idempotency-Key</code>: uma repetição com a mesma chave devolve o pedido já criado em vez de criar outro.</p>
+
+<p><strong>"O que acontece se o serviço cair?" tem resposta observável.</strong> E4 e E5 produzem, para o cliente, o mesmo sintoma: cerca de 1 s de espera e nenhuma resposta. A fase do erro os distingue. Em E4 (<code>read_timeout</code>) a requisição chegou e foi executada; em E5 (<code>connect_timeout</code>) ela nunca chegou, e nenhuma das 60 aparece no log do serviço. Com o serviço fora do ar, a operação não acontece; o risco de duplicação existe só quando a requisição chegou e a resposta se perdeu.</p>
+
+<p><strong>A degradação aparece antes na latência do que na taxa de erro.</strong> Em E3 a taxa de erro ficou em 0%, mas cada operação passou a levar cerca de 320 ms. Um monitoramento apenas por erros consideraria o serviço saudável. Com o atraso um pouco maior (E4), o mesmo serviço passa a 100% de falhas do ponto de vista do cliente, sem nenhum erro registrado no servidor.</p>
+
+<p><strong>Um percentil só é comparável quando o método é declarado.</strong> A fórmula do exemplo da apostila (<code>int(p/100 × n)</code>) devolve, para os valores 1 a 100, p50 = 51 e p99 = 100: uma posição acima da definição. O método do posto mais próximo devolve 50 e 99, de acordo com a definição de que p% das observações são menores ou iguais ao valor. Com 600 amostras, o p99 é determinado pelas seis maiores; por isso o método aparece em cada <code>resultados.json</code>.</p>
+
+<p><strong>Ligação com os conceitos da disciplina.</strong> Os experimentos tornam observáveis termos do Apêndice C: <em>timeout</em> (E4, E5), <em>idempotência</em> (abertura de pedido e o risco de E4), <em>transparência</em> (o cliente não distingue, pelo sintoma, uma falha de outra) e <em>particionamento</em> (E5 é, para o cliente, indistinguível de uma rede cortada).</p>
+
+<!-- ===================================================================== 8 -->
+<h1 id="s8">8. Falhas e limitações</h1>
+
+<h2 id="s8-1">8.1 Ambiente de medição</h2>
+<table>
+<thead><tr><th>Limitação</th><th>Consequência</th><th>Solução conhecida</th></tr></thead>
+<tbody>
+<tr><td>Cliente e serviço na mesma máquina, por loopback</td><td>Não há latência nem perda de rede real; cliente e serviço disputam a mesma CPU</td><td>Executar o serviço em outra máquina ou contêiner com atraso de rede emulado</td></tr>
+<tr><td>Granularidade de cerca de 15,6 ms do temporizador do Windows</td><td>Atrasos injetados excedem o configurado (316,65 ms medidos para 300 ms em E3) e podem terminar um pouco antes do esperado</td><td>Medir o atraso efetivo no serviço, como feito aqui, ou usar temporizador de alta resolução</td></tr>
+<tr><td>Conexão local recusada vira <code>connect_timeout</code> no Windows</td><td>Em E5 a queda leva cerca de 1 s para ser percebida, e não alguns milissegundos</td><td>Considerar o comportamento do SO no tempo limite de conexão; em Linux a recusa tende a ser imediata</td></tr>
+<tr><td><code>platform</code> identifica a build 26300 como "Windows-10"</td><td>O <code>resultados.json</code> registra o nome antigo do sistema</td><td>Documentar a versão real (seção 4)</td></tr>
+</tbody>
+</table>
+
+<h2 id="s8-2">8.2 Desenho experimental</h2>
+<table>
+<thead><tr><th>Limitação</th><th>Consequência</th><th>Solução conhecida</th></tr></thead>
+<tbody>
+<tr><td>Cliente único e sequencial</td><td>Não mede concorrência, fila nem saturação; o throughput é limitado pela latência de cada requisição</td><td>Experimento de carga com vários clientes simultâneos</td></tr>
+<tr><td>Semente fixa reiniciada a cada repetição (E2)</td><td>As três repetições sorteiam a mesma sequência (32 respostas 503 cada): reprodutível, mas não independente</td><td>Derivar a semente do número da repetição</td></tr>
+<tr><td>Amostras reduzidas em E3 (300) e E4 (90)</td><td>Percentis altos menos estáveis nesses cenários</td><td>Aumentar a amostra, ao custo de tempo de execução</td></tr>
+<tr><td>Prova de detecção de defeitos do teste funcional</td><td>Executada durante o desenvolvimento, sem arquivo de evidência</td><td>Automatizar a injeção de defeitos (teste de mutação)</td></tr>
+<tr><td>Execuções anteriores à oficial em <code>experimentos/</code></td><td>Duas pastas de E1 (2026-11-23T201355Z e 2026-11-23T201413Z), geradas durante o diagnóstico, antes da versão final do script</td><td>Citar apenas as pastas oficiais (seção 6), como neste relatório</td></tr>
+</tbody>
+</table>
+
+<h2 id="s8-3">8.3 Serviço</h2>
+<table>
+<thead><tr><th>Limitação</th><th>Consequência</th><th>Solução conhecida</th></tr></thead>
+<tbody>
+<tr><td>Rastreamento interno só em memória, limitado às 500 requisições mais recentes</td><td>Eventos internos se perdem ao reiniciar; o log JSON permanece</td><td>Exportar eventos para armazenamento externo ou usar trace distribuído</td></tr>
+<tr><td>SQLite com um único escritor</td><td>Escritas concorrentes são serializadas pelo lock; não escala para muitos escritores</td><td>Banco cliente-servidor</td></tr>
+<tr><td>Instância única do serviço</td><td>Não há réplica: a queda (E5) torna o serviço indisponível</td><td>Réplicas atrás de um balanceador</td></tr>
+<tr><td>Sem autenticação nem autorização</td><td>Qualquer cliente local pode alterar dados</td><td>Fora do escopo desta atividade</td></tr>
+</tbody>
+</table>
+<p>Nenhuma das limitações acima é erro de implementação: são escolhas do protótipo, declaradas para delimitar o alcance dos números. Os defeitos de implementação encontrados durante o trabalho (codificação do esquema e inserção de dados de usuário como HTML) foram corrigidos e verificados (seção 3.6).</p>
+
+<!-- ===================================================================== 9 -->
+<h1 id="s9">9. Conclusão</h1>
+<p>Os requisitos da atividade foram atendidos. Há um teste funcional separado dos experimentos. A latência é medida por percentis, com erros de aplicação e de transporte contados à parte. Cada requisição é correlacionada nos logs JSON do cliente e do serviço. Cinco cenários reprodutíveis foram declarados com hipótese, perturbação e critério de parada, e cada evidência registra ambiente, versões e parâmetros da execução. Das cinco hipóteses, quatro foram confirmadas (uma com desvio explicado) e uma foi parcialmente confirmada.</p>
+<p>Os números valem para um cliente sequencial e um serviço na mesma máquina, sob Windows. Eles comparam cenários entre si nas mesmas condições; não representam desempenho em rede real nem sob carga concorrente.</p>
+<p>A lição técnica central é que o sintoma visto pelo cliente não basta para entender uma falha. Uma cauda de latência que parecia do serviço estava na conexão, e um tempo limite que parecia falha era uma operação concluída. As duas conclusões só foram possíveis porque a mesma requisição podia ser encontrada nos dois lados da comunicação.</p>
+
+<!-- ===================================================================== 10 -->
+<h1 id="s10">10. Referências</h1>
+
+<h2 id="s10-1">10.1 Enunciado e material da disciplina</h2>
+<ul>
+<li>Apostila de Sistemas Distribuídos: capítulo 16, seção 18.3 e capítulo 19.</li>
+<li>Apêndices A, B e C da disciplina.</li>
+</ul>
+
+<h2 id="s10-2">10.2 Conceitos</h2>
+<ul>
+<li>COULOURIS, G.; DOLLIMORE, J.; KINDBERG, T.; BLAIR, G. <em>Sistemas distribuídos</em>: conceitos e projeto. 5. ed. Porto Alegre: Bookman, 2013.</li>
+<li>TANENBAUM, A. S.; VAN STEEN, M. <em>Sistemas distribuídos</em>: princípios e paradigmas. 2. ed. São Paulo: Pearson Prentice Hall, 2007.</li>
+</ul>
+
+<h2 id="s10-3">10.3 Documentação das ferramentas</h2>
+<ul>
+<li>Python 3 — <code>https://docs.python.org/3/</code> (<code>unittest</code>, <code>sqlite3</code>, <code>logging</code>, <code>asyncio</code>)</li>
+<li>FastAPI — <code>https://fastapi.tiangolo.com/</code></li>
+<li>Uvicorn — <code>https://www.uvicorn.org/</code></li>
+<li>Requests — <code>https://requests.readthedocs.io/</code></li>
+<li>SQLite, transações — <code>https://www.sqlite.org/lang_transaction.html</code></li>
+<li>MDN, AbortController — <code>https://developer.mozilla.org/docs/Web/API/AbortController</code></li>
+</ul>
+
+</body>
+</html>

@@ -7,9 +7,6 @@ __pycache__/
 servico_da_loja/*.db
 servico_da_loja/*.db-journal
 
-# Arquivos gerados pelo relatorio
-relatorio/*.html
-
 # Configuracoes locais de IDE
 .vscode/
 .idea/
